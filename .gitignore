@@ -1,0 +1,23 @@
+# 编译生成的中间文件和最终文件
+build/
+bin/
+*.exe
+*.dll
+*.a
+*.o
+*.obj
+
+# VSCode 自己的配置文件夹（每个人习惯不同，不要传）
+.vscode/
+
+# CMake 生成的临时文件
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+
+# 系统垃圾文件（Windows 和 macOS）
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
