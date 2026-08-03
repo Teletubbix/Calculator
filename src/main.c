@@ -4,9 +4,11 @@
 #include "math_subtract.h"
 #include "math_multiply.h"
 #include "math_divide.h"
-#include "print_error.h"   // 新增
+#include "print_error.h"
+#define APP_VERSION "1.0.0"
 
 int main() {
+    printf("Calculator v%s (C语言学习项目)\n", APP_VERSION);
     int choice;
     double a, b, result;
     while (1) {
