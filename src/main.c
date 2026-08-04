@@ -11,7 +11,7 @@
 #include "print_output.h"
 #include "expr_eval.h"
 
-#define APP_VERSION "1.2.0"
+#define APP_VERSION "1.3.0"
 
 int main() {
     int choice;
@@ -24,7 +24,7 @@ int main() {
         printf("\n========== 科学计算器 ==========\n");
         printf("1. 加法\n2. 减法\n3. 乘法\n4. 除法\n");
         printf("5. 乘方 (a^b)\n6. 开平方根 (√a)\n");
-        printf("7. 表达式计算 (支持 + - * / 和括号)\n");
+        printf("7. 表达式计算 (支持 + - * /, 括号, sin, cos, tan, sqrt, ln, log)\n");
         printf("8. 退出\n");
         printf("请选择 (1-8): ");
 
@@ -79,8 +79,8 @@ int main() {
 
         else if (choice == 7) {
             char buffer[256];
-            getchar();
-            printf("请输入数学表达式 (例如 2+3*4 或 (2+3)*4): ");
+            getchar(); // 清除换行
+            printf("请输入数学表达式 (例如 sin(3.14/2) 或 sqrt(9)+4): ");
             if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
                 print_error("读取输入失败！");
                 continue;

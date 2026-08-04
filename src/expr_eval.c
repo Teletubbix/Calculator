@@ -3,19 +3,25 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 
 #define MAX_STACK 100
-static double num_stack[MAX_STACK];
-static int num_top = -1;
-static char op_stack[MAX_STACK];
-static int op_top = -1;
 
-static void push_num(double v) { if (num_top < MAX_STACK-1) num_stack[++num_top] = v; }
-static double pop_num() { if (num_top >= 0) return num_stack[num_top--]; return 0; }
-static double peek_num() { return num_stack[num_top]; }
-static void push_op(char c) { if (op_top < MAX_STACK-1) op_stack[++op_top] = c; }
-static char pop_op() { if (op_top >= 0) return op_stack[op_top--]; return '\0'; }
-static char peek_op() { return op_stack[op_top]; }
+typedef struct {
+    double num_stack[MAX_STACK];
+    int num_top;
+    char op_stack[MAX_STACK];
+    int op_top;
+} Stack;
+
+static void init_stack(Stack *s) { s->num_top = -1; s->op_top = -1; }
+static void push_num(Stack *s, double v) { if (s->num_top < MAX_STACK-1) s->num_stack[++s->num_top] = v; }
+static double pop_num(Stack *s) { if (s->num_top >= 0) return s->num_stack[s->num_top--]; return 0; }
+static double peek_num(Stack *s) { return s->num_stack[s->num_top]; }
+static void push_op(Stack *s, char c) { if (s->op_top < MAX_STACK-1) s->op_stack[++s->op_top] = c; }
+static char pop_op(Stack *s) { if (s->op_top >= 0) return s->op_stack[s->op_top--]; return '\0'; }
+static char peek_op(Stack *s) { return s->op_stack[s->op_top]; }
+static int is_empty_op(Stack *s) { return s->op_top < 0; }
 
 static int priority(char c) {
     if (c == '+' || c == '-') return 1;
@@ -23,47 +29,85 @@ static int priority(char c) {
     return 0;
 }
 
-static void compute_once() {
-    if (num_top < 1 || op_top < 0) return;
-    char op = pop_op();
-    double b = pop_num();
-    double a = pop_num();
+static void compute_once(Stack *s) {
+    if (s->num_top < 1 || s->op_top < 0) return;
+    char op = pop_op(s);
+    double b = pop_num(s);
+    double a = pop_num(s);
     double r = 0;
     switch(op) {
         case '+': r = a+b; break;
         case '-': r = a-b; break;
         case '*': r = a*b; break;
-        case '/': if (b==0) { fprintf(stderr,"除0错误\n"); exit(1); } r = a/b; break;
+        case '/': if (b==0) { fprintf(stderr,"\n[ERROR] 除数为0\n"); exit(1); } r = a/b; break;
     }
-    push_num(r);
+    push_num(s, r);
 }
 
-double evaluate_expression(const char *expr) {
-    num_top = -1; op_top = -1;
+static double evaluate_core(const char *expr, int len) {
+    Stack s;
+    init_stack(&s);
     const char *p = expr;
-    while (*p) {
+    const char *end = (len >= 0) ? expr + len : NULL;
+    while (*p && (end == NULL || p < end)) {
         if (isspace(*p)) { p++; continue; }
         if (isdigit(*p) || *p == '.') {
-            char *end;
-            double v = strtod(p, &end);
-            push_num(v);
-            p = end;
+            char *endptr;
+            double val = strtod(p, &endptr);
+            push_num(&s, val);
+            p = endptr;
             continue;
         }
-        if (*p == '(') { push_op('('); p++; continue; }
+        if (isalpha(*p)) {
+            char func[20] = {0};
+            int i = 0;
+            while (isalpha(*p) && i < 19) { func[i++] = *p; p++; }
+            func[i] = '\0';
+            if (*p != '(') { fprintf(stderr,"[ERROR] 函数后缺(\n"); exit(1); }
+            p++;
+            const char *sub_start = p;
+            int paren_count = 1;
+            while (*p && paren_count > 0) {
+                if (*p == '(') paren_count++;
+                else if (*p == ')') paren_count--;
+                p++;
+            }
+            int sub_len = (p - sub_start) - 1;
+            char sub_expr[256] = {0};
+            if (sub_len > 0 && sub_len < 255) {
+                strncpy(sub_expr, sub_start, sub_len);
+                sub_expr[sub_len] = '\0';
+            }
+            double arg = evaluate_core(sub_expr, -1);
+            double result = 0;
+            if (strcmp(func, "sin") == 0) result = sin(arg);
+            else if (strcmp(func, "cos") == 0) result = cos(arg);
+            else if (strcmp(func, "tan") == 0) result = tan(arg);
+            else if (strcmp(func, "sqrt") == 0) result = sqrt(arg);
+            else if (strcmp(func, "ln") == 0) result = log(arg);
+            else if (strcmp(func, "log") == 0) result = log10(arg);
+            else { fprintf(stderr,"[ERROR] 未知函数 %s\n", func); exit(1); }
+            push_num(&s, result);
+            continue;
+        }
+        if (*p == '(') { push_op(&s, '('); p++; continue; }
         if (*p == ')') {
-            while (op_top >= 0 && peek_op() != '(') compute_once();
-            if (peek_op() == '(') pop_op();
+            while (!is_empty_op(&s) && peek_op(&s) != '(') compute_once(&s);
+            if (!is_empty_op(&s) && peek_op(&s) == '(') pop_op(&s);
             p++; continue;
         }
         if (*p == '+' || *p == '-' || *p == '*' || *p == '/') {
-            while (op_top >= 0 && priority(peek_op()) >= priority(*p)) compute_once();
-            push_op(*p);
+            while (!is_empty_op(&s) && priority(peek_op(&s)) >= priority(*p)) compute_once(&s);
+            push_op(&s, *p);
             p++; continue;
         }
-        fprintf(stderr, "非法字符 %c\n", *p);
+        fprintf(stderr, "[ERROR] 非法字符 '%c'\n", *p);
         exit(1);
     }
-    while (op_top >= 0) compute_once();
-    return peek_num();
+    while (!is_empty_op(&s)) compute_once(&s);
+    return peek_num(&s);
+}
+
+double evaluate_expression(const char *expr) {
+    return evaluate_core(expr, -1);
 }
