@@ -60,15 +60,17 @@ static double evaluate_core(const char *expr, int len) {
             continue;
         }
 
-        // 处理函数（字母开头，后跟 '('）
+        // 处理字母（函数或常量）
         if (isalpha(*p)) {
-            char func[20] = {0};
+            char word[20] = {0};
             int i = 0;
             while (isalpha(*p) && i < 19) {
-                func[i++] = *p;
+                word[i++] = *p;
                 p++;
             }
-            func[i] = '\0';
+            word[i] = '\0';
+
+            // 如果后面跟着 '('，说明是函数
             if (*p == '(') {
                 p++; // 跳过 '('
                 const char *sub_start = p;
@@ -86,18 +88,29 @@ static double evaluate_core(const char *expr, int len) {
                 }
                 double arg = evaluate_core(sub_expr, -1);
                 double result = 0;
-                if (strcmp(func, "sin") == 0) result = sin(arg);
-                else if (strcmp(func, "cos") == 0) result = cos(arg);
-                else if (strcmp(func, "tan") == 0) result = tan(arg);
-                else if (strcmp(func, "sqrt") == 0) result = sqrt(arg);
-                else if (strcmp(func, "ln") == 0) result = log(arg);
-                else if (strcmp(func, "log") == 0) result = log10(arg);
-                else { fprintf(stderr, "[ERROR] 未知函数 '%s'\n", func); exit(1); }
+                if (strcmp(word, "sin") == 0) result = sin(arg);
+                else if (strcmp(word, "cos") == 0) result = cos(arg);
+                else if (strcmp(word, "tan") == 0) result = tan(arg);
+                else if (strcmp(word, "sqrt") == 0) result = sqrt(arg);
+                else if (strcmp(word, "ln") == 0) result = log(arg);
+                else if (strcmp(word, "log") == 0) result = log10(arg);
+                else { fprintf(stderr, "[ERROR] 未知函数 '%s'\n", word); exit(1); }
                 push_num(&s, result);
                 continue;
-            } else {
-                fprintf(stderr, "[ERROR] 未知常量或函数 '%s'，请使用希腊字母 π 表示圆周率\n", func);
-                exit(1);
+            } 
+            // 否则是常量
+            else {
+                double val = 0;
+                if (strcmp(word, "pi") == 0) {
+                    val = 3.141592653589793;
+                } else if (strcmp(word, "e") == 0) {
+                    val = 2.718281828459045;
+                } else {
+                    fprintf(stderr, "[ERROR] 未知常量或函数 '%s'\n", word);
+                    exit(1);
+                }
+                push_num(&s, val);
+                continue;
             }
         }
 

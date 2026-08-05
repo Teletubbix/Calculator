@@ -10,17 +10,18 @@
 #include "print_error.h"
 #include "print_output.h"
 #include "expr_eval.h"
+#include "linenoise.h"
 
-#define APP_VERSION "1.5.0"
+#define APP_VERSION "1.6.0"
 
 int main() {
     int choice;
     double a, b, result;
     char op;
 
-    printf("Calculator v%s (C语言学习项目)\n", APP_VERSION);
+    linenoiseHistorySetMaxLen(100);
 
-    // 跨平台操作系统检测（仅用于信息显示）
+    printf("Calculator v%s (C语言学习项目)\n", APP_VERSION);
 #ifdef _WIN32
     printf("Platform: Windows\n");
 #elif __linux__
@@ -33,7 +34,7 @@ int main() {
         printf("\n========== 科学计算器 ==========\n");
         printf("1. 加法\n2. 减法\n3. 乘法\n4. 除法\n");
         printf("5. 乘方 (a^b)\n6. 开平方根 (√a)\n");
-        printf("7. 表达式计算 (支持 + - * /, 括号, sin, cos, tan, sqrt, ln, log, π, e)\n");
+        printf("7. 表达式计算 (支持 + - * /, 括号, sin, cos, tan, sqrt, ln, log, π/pi, e)\n");
         printf("8. 退出\n");
         printf("请选择 (1-8): ");
 
@@ -87,16 +88,19 @@ int main() {
         }
 
         else if (choice == 7) {
-            char buffer[256];
-            getchar(); // 清除换行
-            printf("请输入数学表达式 (例如 sin(π/2) 或 ln(e)+1): ");
-            if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
+            char *input = linenoise("请输入数学表达式: ");
+            if (input == NULL) {
                 print_error("读取输入失败！");
                 continue;
             }
-            buffer[strcspn(buffer, "\n")] = '\0';
-            double expr_result = evaluate_expression(buffer);
+            if (strlen(input) == 0) {
+                linenoiseFree(input);
+                continue;
+            }
+            linenoiseHistoryAdd(input);
+            double expr_result = evaluate_expression(input);
             printf("计算结果: %.4f\n", expr_result);
+            linenoiseFree(input);
         }
     }
 

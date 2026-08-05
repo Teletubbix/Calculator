@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(Calculator VERSION 1.5.0)
+project(Calculator VERSION 1.6.0)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED True)
@@ -17,6 +17,7 @@ add_executable(calculator
     src/print_error.c 
     src/print_output.c
     src/expr_eval.c
+    src/linenoise.c
 )
 target_link_libraries(calculator math)
 
