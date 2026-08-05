@@ -60,7 +60,7 @@ static double evaluate_core(const char *expr, int len) {
             continue;
         }
 
-        // ---------- 处理字母（函数或常量） ----------
+        // 处理函数（字母开头，后跟 '('）
         if (isalpha(*p)) {
             char func[20] = {0};
             int i = 0;
@@ -69,8 +69,6 @@ static double evaluate_core(const char *expr, int len) {
                 p++;
             }
             func[i] = '\0';
-
-            // 如果后面跟着 '('，说明是函数（如 sin、cos）
             if (*p == '(') {
                 p++; // 跳过 '('
                 const char *sub_start = p;
@@ -97,21 +95,17 @@ static double evaluate_core(const char *expr, int len) {
                 else { fprintf(stderr, "[ERROR] 未知函数 '%s'\n", func); exit(1); }
                 push_num(&s, result);
                 continue;
-            } 
-            // 否则，说明是常量（π 或 e）
-            else {
-                double val = 0;
-                if (strcmp(func, "π") == 0) {
-                    val = 3.141592653589793;
-                } else if (strcmp(func, "e") == 0) {
-                    val = 2.718281828459045;
-                } else {
-                    fprintf(stderr, "[ERROR] 未知常量或函数 '%s'\n", func);
-                    exit(1);
-                }
-                push_num(&s, val);
-                continue;
+            } else {
+                fprintf(stderr, "[ERROR] 未知常量或函数 '%s'，请使用希腊字母 π 表示圆周率\n", func);
+                exit(1);
             }
+        }
+
+        // 处理希腊字母 π（UTF-8 编码 \xCF\x80）
+        if ((unsigned char)*p == 0xCF && *(p+1) == 0x80) {
+            push_num(&s, 3.141592653589793);
+            p += 2;
+            continue;
         }
 
         if (*p == '(') { push_op(&s, '('); p++; continue; }
@@ -125,7 +119,7 @@ static double evaluate_core(const char *expr, int len) {
             push_op(&s, *p);
             p++; continue;
         }
-        fprintf(stderr, "[ERROR] 非法字符 '%c'\n", *p);
+        fprintf(stderr, "[ERROR] 非法字符 '%c' (ASCII: %d)\n", *p, *p);
         exit(1);
     }
     while (!is_empty_op(&s)) compute_once(&s);

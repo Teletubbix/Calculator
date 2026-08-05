@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(Calculator VERSION 1.2.0)
+project(Calculator VERSION 1.5.0)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED True)
@@ -10,7 +10,7 @@ include_directories(include)
 
 file(GLOB MATH_SRCS "src/math_*.c")
 add_library(math SHARED ${MATH_SRCS})
-target_link_libraries(math m)  # 链接数学库
+target_link_libraries(math m)
 
 add_executable(calculator 
     src/main.c 

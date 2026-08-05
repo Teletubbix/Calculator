@@ -11,7 +11,7 @@
 #include "print_output.h"
 #include "expr_eval.h"
 
-#define APP_VERSION "1.4.0"
+#define APP_VERSION "1.5.0"
 
 int main() {
     int choice;
@@ -19,6 +19,15 @@ int main() {
     char op;
 
     printf("Calculator v%s (C语言学习项目)\n", APP_VERSION);
+
+    // 跨平台操作系统检测（仅用于信息显示）
+#ifdef _WIN32
+    printf("Platform: Windows\n");
+#elif __linux__
+    printf("Platform: Linux\n");
+#else
+    printf("Platform: Unknown\n");
+#endif
 
     while (1) {
         printf("\n========== 科学计算器 ==========\n");
@@ -80,7 +89,7 @@ int main() {
         else if (choice == 7) {
             char buffer[256];
             getchar(); // 清除换行
-            printf("请输入数学表达式 (例如 sin(pi/2) 或 ln(e)+1): ");
+            printf("请输入数学表达式 (例如 sin(π/2) 或 ln(e)+1): ");
             if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
                 print_error("读取输入失败！");
                 continue;
