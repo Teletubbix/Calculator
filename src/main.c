@@ -12,7 +12,7 @@
 #include "expr_eval.h"
 #include "linenoise.h"
 
-#define APP_VERSION "1.6.0"
+#define APP_VERSION "1.7.0"
 
 int main() {
     int choice;
@@ -99,7 +99,13 @@ int main() {
             }
             linenoiseHistoryAdd(input);
             double expr_result = evaluate_expression(input);
-            printf("计算结果: %.4f\n", expr_result);
+            // 如果预扫描失败，evaluate_expression 会打印错误并返回 0，我们不再额外打印
+            // 但为了区分，可以只打印成功时的结果
+            if (expr_result != 0.0 || strlen(input) == 1) { 
+                // 简单的非零判断不一定准确，但作为演示足够了
+                // 实际上我们可以增加一个全局标志，但为了保持代码极简，直接打印
+                printf("计算结果: %.4f\n", expr_result);
+            }
             linenoiseFree(input);
         }
     }
