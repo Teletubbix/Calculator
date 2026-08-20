@@ -17,9 +17,19 @@ if(NOT WIN32)
     target_link_libraries(calc_core PUBLIC m)
 endif()
 
-# 主程序
-add_executable(Calculator src/main.c)
-target_link_libraries(Calculator PRIVATE calc_core)
+if(WIN32)
+    # Windows GUI 主程序
+    add_executable(Calculator WIN32 src/gui_windows.c)
+    target_link_libraries(Calculator PRIVATE calc_core)
+
+    # 命令行版本（供脚本或无窗口环境使用）
+    add_executable(Calculator-cli src/main.c)
+    target_link_libraries(Calculator-cli PRIVATE calc_core)
+else()
+    # 在 Linux 上检出本分支时，仅构建命令行版和测试，便于快速验证核心
+    add_executable(Calculator-cli src/main.c)
+    target_link_libraries(Calculator-cli PRIVATE calc_core)
+endif()
 
 # 单元测试
 enable_testing()
