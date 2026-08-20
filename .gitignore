@@ -1,22 +1,25 @@
-# 编译生成的中间文件和最终文件
+# 编译产物
 build/
 bin/
-*.exe
-*.dll
-*.a
 *.o
 *.obj
+*.a
+*.so
+*.dylib
+*.exe
+*.dll
 
-# VSCode 自己的配置文件夹（每个人习惯不同，不要传）
+# IDE / 编辑器
 .vscode/
+.idea/
 
-# CMake 生成的临时文件
+# CMake 中间文件
 CMakeCache.txt
 CMakeFiles/
-Makefile
 cmake_install.cmake
+compile_commands.json
 
-# 系统垃圾文件（Windows 和 macOS）
+# 系统临时文件
 *.log
 *.tmp
 .DS_Store

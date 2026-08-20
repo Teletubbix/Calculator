@@ -1,114 +1,154 @@
+/*
+ * Calculator 主程序
+ *
+ * 用法一：交互模式
+ *   ./Calculator
+ *   然后逐行输入表达式，例如：
+ *     > (1+2)*3^2
+ *     > sqrt(9) + 5!
+ *     > sin(pi/2)
+ *   help 查看帮助，quit / exit 退出。
+ *
+ * 用法二：命令行直接计算
+ *   ./Calculator "2^10" "log(1000)"
+ */
+
+#include "calculator.h"
+
+#include <ctype.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include "math_add.h"
-#include "math_subtract.h"
-#include "math_multiply.h"
-#include "math_divide.h"
-#include "math_power.h"
-#include "math_sqrt.h"
-#include "print_error.h"
-#include "print_output.h"
-#include "expr_eval.h"
-#include "linenoise.h"
 
-#define APP_VERSION "1.7.0"
+#define APP_NAME "Calculator"
+#define APP_VERSION "2.0.0"
+#define MAX_LINE 1024
 
-int main() {
-    int choice;
-    double a, b, result;
-    char op;
+static void print_banner(void) {
+    printf("==================================================\n");
+    printf("  %s v%s —— C 语言科学计算器\n", APP_NAME, APP_VERSION);
+    printf("==================================================\n");
+}
 
-    linenoiseHistorySetMaxLen(100);
+static void print_help(void) {
+    printf(
+        "\n"
+        "支持直接输入数学表达式，按回车计算。\n"
+        "\n"
+        " 运算符：\n"
+        "   + - * /      加、减、乘、除\n"
+        "   ^            乘方（右结合，例如 2^3^2 = 2^(3^2)）\n"
+        "   !            阶乘（后缀，例如 5! = 120）\n"
+        "\n"
+        " 函数（输入弧度）：sin(x) cos(x) tan(x)\n"
+        " 函数（输入角度）：sind(x) cosd(x) tand(x)\n"
+        " 其他函数：sqrt(x) ln(x) log(x) log2(x) pow(a,b) exp(x) abs(x)\n"
+        "   说明：ln 是自然对数，log 是以 10 为底的对数。\n"
+        "\n"
+        " 常量：pi 或 π（圆周率）、e（自然常数），不区分大小写。\n"
+        "\n"
+        " 示例：\n"
+        "   2 + 3 * 4          = 14\n"
+        "   (2 + 3) * 4        = 20\n"
+        "   2^10               = 1024\n"
+        "   sqrt(9) + 5!       = 123\n"
+        "   sin(pi/2)          = 1\n"
+        "   cosd(60)           = 0.5（角度制）\n"
+        "   ln(e^3)            = 3\n"
+        "   log(1000)          = 3\n"
+        "   2 * pi             = 6.283185307179586\n"
+        "\n"
+        " 注意：暂不支持省略乘号，请写 2*pi 而不是 2pi。\n"
+        "       输入 help 查看本帮助，quit 或 exit 退出。\n"
+        "\n");
+}
 
-    printf("Calculator v%s (C语言学习项目)\n", APP_VERSION);
-#ifdef _WIN32
-    printf("Platform: Windows\n");
-#elif __linux__
-    printf("Platform: Linux\n");
-#else
-    printf("Platform: Unknown\n");
-#endif
+/* 去掉一行首尾的空白字符（含换行符） */
+static char *trim_line(char *s) {
+    while (isspace((unsigned char)*s)) {
+        s++;
+    }
+    size_t len = strlen(s);
+    while (len > 0 && isspace((unsigned char)s[len - 1])) {
+        s[--len] = '\0';
+    }
+    return s;
+}
 
-    while (1) {
-        printf("\n========== 科学计算器 ==========\n");
-        printf("1. 加法\n2. 减法\n3. 乘法\n4. 除法\n");
-        printf("5. 乘方 (a^b)\n6. 开平方根 (√a)\n");
-        printf("7. 表达式计算 (支持 + - * /, 括号, sin, cos, tan, sqrt, ln, log, π/pi, e)\n");
-        printf("8. 退出\n");
-        printf("请选择 (1-8): ");
+static int evaluate_line(const char *line) {
+    double result = 0.0;
+    char error[512];
 
-        if (scanf("%d", &choice) != 1) {
-            print_error("输入无效，请输入数字！");
-            while (getchar() != '\n');
-            continue;
-        }
-
-        if (choice == 8) { printf("再见！\n"); break; }
-        if (choice < 1 || choice > 7) {
-            print_error("无效选项，请输入1-7！");
-            continue;
-        }
-
-        if (choice >= 1 && choice <= 6) {
-            printf("请输入第一个数字 (a): ");
-            if (scanf("%lf", &a) != 1) {
-                print_error("输入不是有效数字！");
-                while (getchar() != '\n');
-                continue;
-            }
-            if (choice != 6) {
-                printf("请输入第二个数字 (b): ");
-                if (scanf("%lf", &b) != 1) {
-                    print_error("输入不是有效数字！");
-                    while (getchar() != '\n');
-                    continue;
-                }
-            } else {
-                b = 0;
-            }
-
-            switch (choice) {
-                case 1: result = add(a, b); op = '+'; break;
-                case 2: result = subtract(a, b); op = '-'; break;
-                case 3: result = multiply(a, b); op = '*'; break;
-                case 4:
-                    if (b == 0) { print_error("除数不能为0！"); continue; }
-                    result = divide(a, b); op = '/'; break;
-                case 5:
-                    result = power(a, b); op = '^'; break;
-                case 6:
-                    if (a < 0) { print_error("负数没有实数平方根！"); continue; }
-                    result = square_root(a);
-                    printf("√%.2f = %.2f\n", a, result);
-                    continue;
-                default: print_error("未知错误！"); continue;
-            }
-            print_result(a, op, b, result);
-        }
-
-        else if (choice == 7) {
-            char *input = linenoise("请输入数学表达式: ");
-            if (input == NULL) {
-                print_error("读取输入失败！");
-                continue;
-            }
-            if (strlen(input) == 0) {
-                linenoiseFree(input);
-                continue;
-            }
-            linenoiseHistoryAdd(input);
-            double expr_result = evaluate_expression(input);
-            // 如果预扫描失败，evaluate_expression 会打印错误并返回 0，我们不再额外打印
-            // 但为了区分，可以只打印成功时的结果
-            if (expr_result != 0.0 || strlen(input) == 1) { 
-                // 简单的非零判断不一定准确，但作为演示足够了
-                // 实际上我们可以增加一个全局标志，但为了保持代码极简，直接打印
-                printf("计算结果: %.4f\n", expr_result);
-            }
-            linenoiseFree(input);
-        }
+    if (calc_evaluate(line, &result, error, sizeof(error)) != 0) {
+        fprintf(stderr, "[ERROR] %s", error);
+        return -1;
     }
 
+    /* %g 会自动去掉多余的 0，整数结果不显示小数点 */
+    printf("= %.15g\n", result);
     return 0;
+}
+
+static int is_command(const char *line, const char *cmd) {
+    return strcmp(line, cmd) == 0;
+}
+
+/* 交互模式：反复读取一行并求值，直到 EOF 或退出命令 */
+static int run_repl(void) {
+    char line[MAX_LINE];
+
+    print_banner();
+    print_help();
+
+    while (1) {
+        printf("> ");
+        fflush(stdout);
+
+        if (fgets(line, sizeof(line), stdin) == NULL) {
+            printf("\n再见！\n");
+            return 0;
+        }
+
+        char *input = trim_line(line);
+        if (*input == '\0') {
+            continue;
+        }
+
+        if (is_command(input, "quit") || is_command(input, "exit") ||
+            is_command(input, "q")) {
+            printf("再见！\n");
+            return 0;
+        }
+        if (is_command(input, "help") || is_command(input, "h") ||
+            is_command(input, "?")) {
+            print_help();
+            continue;
+        }
+
+        evaluate_line(input);
+    }
+}
+
+/* 命令行模式：./Calculator "表达式1" "表达式2" ... */
+static int run_command_line(int argc, char **argv) {
+    int exit_code = 0;
+
+    for (int i = 1; i < argc; i++) {
+        char *expr = trim_line(argv[i]);
+        if (*expr == '\0') {
+            continue;
+        }
+        printf("%s\n", expr);
+        if (evaluate_line(expr) != 0) {
+            exit_code = 1;
+        }
+        printf("\n");
+    }
+    return exit_code;
+}
+
+int main(int argc, char **argv) {
+    if (argc > 1) {
+        return run_command_line(argc, argv);
+    }
+    return run_repl();
 }
