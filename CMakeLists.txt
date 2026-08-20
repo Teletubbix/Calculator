@@ -17,9 +17,20 @@ if(NOT WIN32)
     target_link_libraries(calc_core PUBLIC m)
 endif()
 
-# 主程序
-add_executable(Calculator src/main.c)
-target_link_libraries(Calculator PRIVATE calc_core)
+# 查找 GTK3（Linux GUI 必需）
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+
+# Linux GUI 主程序
+add_executable(Calculator src/gui_linux.c)
+target_include_directories(Calculator PRIVATE ${GTK3_INCLUDE_DIRS})
+target_link_libraries(Calculator PRIVATE calc_core ${GTK3_LIBRARIES})
+target_link_directories(Calculator PRIVATE ${GTK3_LIBRARY_DIRS})
+target_compile_options(Calculator PRIVATE ${GTK3_CFLAGS_OTHER})
+
+# 保留命令行版本，便于无图形环境使用
+add_executable(Calculator-cli src/main.c)
+target_link_libraries(Calculator-cli PRIVATE calc_core)
 
 # 单元测试
 enable_testing()
