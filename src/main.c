@@ -68,6 +68,7 @@ static int console_read_key(unsigned char *key) {
     return (int)n; /* 1=读到, 0=EOF, -1=错误 */
 }
 #else
+static void console_restore(void) { /* Windows 无需恢复终端设置 */ }
 static int console_enter_raw(void) { return 1; }
 static int console_read_key(unsigned char *key) {
     int ch = _getch();
@@ -126,7 +127,7 @@ static void print_help(void) {
         "\n"
         " 命令（输入后按 Enter）：\n"
         "   precision N      设置显示精度，例如 precision 2 表示保留 2 位小数\n"
-        "   precision auto   恢复自动格式（%.15g）\n"
+        "   precision auto   恢复自动格式（%%）\n"
         "   help             显示本帮助\n"
         "   quit / exit / q  退出（也可直接按 Esc）\n"
         "\n"
