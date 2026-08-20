@@ -152,6 +152,8 @@ typedef struct {
     int failed;               /* 是否已经发生错误 */
     int error_pos;            /* 错误位置（字节下标） */
     char message[MAX_ERROR_LEN + 1];
+    double ans_value;         /* 上一次计算结果，供 Ans 使用 */
+    int has_ans;              /* 是否已经有上一次计算结果 */
 } Parser;
 
 static void parser_set_error(Parser *p, int pos, const char *fmt, ...) {
@@ -476,7 +478,15 @@ static double parse_primary(Parser *p) {
         if (ident_equals(name, "e")) {
             return M_E;
         }
-        parser_set_error(p, ident_pos, "未知常量 '%s'（可用常量：pi、e）", name);
+        if (ident_equals(name, "ans")) {
+            if (!p->has_ans) {
+                parser_set_error(p, ident_pos,
+                                 "还没有上一次计算结果，请先完成一次计算再使用 Ans");
+                return 0.0;
+            }
+            return p->ans_value;
+        }
+        parser_set_error(p, ident_pos, "未知常量 '%s'（可用常量：pi、e、Ans）", name);
         return 0.0;
     }
 
@@ -537,16 +547,20 @@ static void format_error(const char *message,
     used = append_text(out, out_size, used, "^\n");
 }
 
-int calc_evaluate(const char *expression,
-                  double *result,
-                  char *error_buffer,
-                  size_t error_buffer_size) {
+static int calc_evaluate_impl(const char *expression,
+                             double ans_value,
+                             int has_ans,
+                             double *result,
+                             char *error_buffer,
+                             size_t error_buffer_size) {
     if (expression == NULL || result == NULL) {
         return -1;
     }
 
     Parser p;
     memset(&p, 0, sizeof(p));
+    p.ans_value = ans_value;
+    p.has_ans = has_ans;
     lexer_init(&p.lx, expression);
     lexer_next(&p.lx);
 
@@ -574,4 +588,22 @@ int calc_evaluate(const char *expression,
 
     *result = value;
     return 0;
+}
+
+int calc_evaluate(const char *expression,
+                  double *result,
+                  char *error_buffer,
+                  size_t error_buffer_size) {
+    return calc_evaluate_impl(expression, 0.0, 0, result,
+                              error_buffer, error_buffer_size);
+}
+
+int calc_evaluate_with_ans(const char *expression,
+                           double ans,
+                           int has_ans,
+                           double *result,
+                           char *error_buffer,
+                           size_t error_buffer_size) {
+    return calc_evaluate_impl(expression, ans, has_ans, result,
+                              error_buffer, error_buffer_size);
 }

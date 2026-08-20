@@ -39,6 +39,19 @@ static void expect_value(const char *expr, double expected, double tolerance) {
     }
 }
 
+static void expect_value_ans(const char *expr, double ans, double expected, double tolerance) {
+    double result = 0.0;
+    char error[512] = {0};
+    int rc = calc_evaluate_with_ans(expr, ans, 1, &result, error, sizeof(error));
+    if (rc != 0 || !near(result, expected, tolerance)) {
+        printf("FAIL  %-24s 期望=%g  实际=%g  错误=%s\n",
+               expr, expected, result, rc != 0 ? error : "数值不符");
+        failures++;
+    } else {
+        printf("PASS  %-24s = %g\n", expr, result);
+    }
+}
+
 static void expect_error(const char *expr) {
     double result = 0.0;
     char error[512] = {0};
@@ -92,6 +105,12 @@ int main(void) {
     expect_value("2*pi", 2 * M_PI, 1e-12);
     expect_value("2*π", 2 * M_PI, 1e-12);
     expect_value("e^1", M_E, 1e-12);
+
+    /* Ans 记忆功能 */
+    expect_value_ans("e^2", 0.0, M_E * M_E, 1e-12);
+    expect_value_ans("sin(Ans)", M_E * M_E, sin(M_E * M_E), 1e-12);
+    expect_value_ans("Ans+1", 41.0, 42.0, 1e-12);
+    expect_error("ans");
 
     /* 一元正负号与优先级 */
     expect_value("-3^2", -9, 1e-12);
