@@ -88,6 +88,6 @@ Calculator/
 ## 🧪 测试
 
 ```bash
-make test       # 49 个核心测试
+make test       # 51 个核心测试
 make gui-test   # GUI 自检（验证 GUI 与核心正确链接）
 ```
