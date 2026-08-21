@@ -133,6 +133,23 @@ int main(void) {
     expect_error("1 2");
     expect_error("");
 
+    /* 幂与负底数、特殊值 */
+    expect_value("pow(2,-2)", 0.25, 1e-12);
+    expect_value("(-2)^3", -8, 1e-12);
+    expect_value("0^0", 1, 1e-12);
+    expect_value("sqrt(2)^2", 2, 1e-12);
+    expect_value("cos(2*pi)", 1, 1e-9);
+
+    /* 溢出与定义域边界 */
+    expect_error("1e999");
+    expect_error("1e308*1e308");
+    expect_error("2^1024");
+    expect_error("exp(1000)");
+    expect_error("1+");
+    expect_error("2(3)");
+    expect_error("   ");
+    expect_error("7/0.0");
+
     printf("\n测试结束：%s\n", failures == 0 ? "全部通过" : "存在失败用例");
     return failures == 0 ? 0 : 1;
 }

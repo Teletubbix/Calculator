@@ -1,4 +1,4 @@
-# 🧮 Calculator v3.0.0 用户说明书
+# 🧮 Calculator v3.1.0 用户说明书
 
 本说明书适用于 `main`、`linux`、`windows` 三个分支。
 
@@ -228,4 +228,4 @@ gcc -std=c11 -O2 -Wall -Wextra -Iinclude -municode -mwindows ^
 make test
 ```
 
-共 51 个自动测试，覆盖全部基本运算、`Ans`、错误处理和优先级。
+共 61 个自动测试，覆盖全部基本运算、`Ans`、错误处理和优先级。
