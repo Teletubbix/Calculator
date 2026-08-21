@@ -1,5 +1,5 @@
 /*
- * Calculator v3.0.0 —— Windows Win32 图形界面
+ * Calculator v3.1.0 —— Windows Win32 图形界面
  *
  * 界面说明：
  *   - 顶部是表达式输入框，可直接用键盘输入
@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define GUI_VERSION L"3.0.0"
+#define GUI_VERSION L"3.1.0"
 #define PRECISION_AUTO (-1)
 
 /* 控件 ID */
@@ -496,7 +496,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                      FALSE);
 
     HWND hWnd = CreateWindowExW(0, L"CalculatorMainClass",
-                                L"Calculator v3.0.0 (Windows GUI)",
+                                L"Calculator v3.1.0 (Windows GUI)",
                                 WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
                                 CW_USEDEFAULT, CW_USEDEFAULT,
                                 rc.right - rc.left, rc.bottom - rc.top,

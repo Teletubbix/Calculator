@@ -1,5 +1,5 @@
 @echo off
-REM Calculator v3.0.0 Windows GUI 一键编译脚本
+REM Calculator v3.1.0 Windows GUI 一键编译脚本
 REM 需要 MinGW-w64 GCC，并已加入 PATH（例如 MSYS2 的 mingw64\bin）
 
 if not exist bin mkdir bin
