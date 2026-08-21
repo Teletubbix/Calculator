@@ -43,6 +43,10 @@ endif()
 
 # —— 安装规则 ——
 include(GNUInstallDirs)
-install(TARGETS calc_core Calculator
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+install(TARGETS calc_core
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+# GUI 目标(Calculator)只在对应平台分支上存在；不存在时跳过安装，避免配置失败
+if(TARGET Calculator)
+    install(TARGETS Calculator
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
