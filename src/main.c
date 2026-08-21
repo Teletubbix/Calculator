@@ -1,5 +1,5 @@
 /*
- * Calculator 主程序 v3.0.0
+ * Calculator 主程序 v3.1.0
  *
  * 交互模式：
  *   ./Calculator
@@ -25,7 +25,7 @@
 #endif
 
 #define APP_NAME "Calculator"
-#define APP_VERSION "3.0.0"
+#define APP_VERSION "3.1.0"
 #define MAX_LINE 1024
 #define PRECISION_AUTO (-1)
 
@@ -281,8 +281,8 @@ static int read_line_raw(char *buf, size_t size) {
             return 0;
         }
 
-        /* 可打印字符：按字节存入（UTF-8 的 π 也能正常输入） */
-        if (key >= 32 && key < 127 && len + 1 < size) {
+        /* 可打印字符：按字节存入（key >= 32 即可，允许 UTF-8 多字节字符如 π 正常输入） */
+        if (key >= 32 && len + 1 < size) {
             buf[len++] = (char)key;
             buf[len] = '\0';
             putchar(key);

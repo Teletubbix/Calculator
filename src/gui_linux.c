@@ -1,5 +1,5 @@
 /*
- * Calculator v3.0.0 —— Linux GTK3 图形界面
+ * Calculator v3.1.0 —— Linux GTK3 图形界面
  *
  * 界面说明：
  *   - 上方是表达式输入框（可直接用键盘输入）
@@ -17,7 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define GUI_VERSION "3.0.0"
+#define GUI_VERSION "3.1.0"
 #define PRECISION_AUTO (-1)
 
 typedef struct {
@@ -326,7 +326,7 @@ int main(int argc, char **argv) {
     app.precision = PRECISION_AUTO;
 
     app.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(app.window), "Calculator v3.0.0 (Linux GTK)");
+    gtk_window_set_title(GTK_WINDOW(app.window), "Calculator v3.1.0 (Linux GTK)");
     gtk_window_set_default_size(GTK_WINDOW(app.window), 520, 520);
     gtk_container_set_border_width(GTK_CONTAINER(app.window), 10);
 

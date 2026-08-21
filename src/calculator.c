@@ -188,38 +188,39 @@ static double parse_primary(Parser *p);
 
 /* 二元运算，同时做定义域检查 */
 static double binary_op(Parser *p, int pos, char op, double a, double b) {
+    double r;
     switch (op) {
-        case '+':
-            return a + b;
-        case '-':
-            return a - b;
-        case '*':
-            return a * b;
+        case '+': r = a + b; break;
+        case '-': r = a - b; break;
+        case '*': r = a * b; break;
         case '/':
             if (b == 0.0) {
                 parser_set_error(p, pos, "除法错误：除数不能为 0");
                 return 0.0;
             }
-            return a / b;
+            r = a / b;
+            break;
         case '^': {
             errno = 0;
-            double r = pow(a, b);
+            r = pow(a, b);
             if (errno == EDOM || isnan(r)) {
                 parser_set_error(p, pos,
                                  "乘方错误：底数为负数时，指数必须是整数（例如 (-2)^2，"
                                  "而 (-2)^0.5 在实数范围内无定义）");
                 return 0.0;
             }
-            if (isinf(r) && isfinite(a) && isfinite(b)) {
-                parser_set_error(p, pos, "乘方结果超出 double 可表示的范围");
-                return 0.0;
-            }
-            return r;
+            break;
         }
         default:
             parser_set_error(p, pos, "内部错误：未知运算符 '%c'", op);
             return 0.0;
     }
+    /* 集中检测所有算术运算的溢出：结果非有限而操作数有限 */
+    if (isinf(r) && isfinite(a) && isfinite(b)) {
+        parser_set_error(p, pos, "计算结果超出 double 可表示的范围");
+        return 0.0;
+    }
+    return r;
 }
 
 /* 一元函数，同时做定义域检查 */
