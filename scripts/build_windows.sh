@@ -21,6 +21,7 @@ export PATH=/mingw64/bin:\$PATH
 export PKG_CONFIG_PATH=/mingw64/lib/pkgconfig
 export PKG_CONFIG_LIBDIR=/mingw64/lib/pkgconfig
 cd '$MSYS_PROJECT'
+mkdir -p bin gui
 echo ':: 编译算法库 (.dll)'
 # 复数库无依赖，先编；核心库依赖复数，需链入
 x86_64-w64-mingw32-gcc -shared -Iinclude src/complex.c   -o bin/libcalc_complex.dll -Wl,--out-implib,bin/libcalc_complex.dll.a
