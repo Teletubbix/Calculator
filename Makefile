@@ -35,8 +35,8 @@ all: $(TARGET)
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 
-$(CORE_LIB): src/calculator.c include/calculator.h | $(BIN_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared src/calculator.c -o $@ $(LDLIBS)
+$(CORE_LIB): src/calculator.c include/calculator.h $(COMPLEX_LIB) | $(BIN_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared src/calculator.c -o $@ -L$(BIN_DIR) -lcalc_complex $(LDLIBS)
 
 $(UNITS_LIB): src/units.c include/units.h | $(BIN_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared src/units.c -o $@ $(LDLIBS)

@@ -22,10 +22,11 @@ export PKG_CONFIG_PATH=/mingw64/lib/pkgconfig
 export PKG_CONFIG_LIBDIR=/mingw64/lib/pkgconfig
 cd '$MSYS_PROJECT'
 echo ':: 编译算法库 (.dll)'
-x86_64-w64-mingw32-gcc -shared -Iinclude src/calculator.c -o bin/libcalc_core.dll    -Wl,--out-implib,bin/libcalc_core.dll.a
-x86_64-w64-mingw32-gcc -shared -Iinclude src/units.c    -o bin/libcalc_units.dll   -Wl,--out-implib,bin/libcalc_units.dll.a
-x86_64-w64-mingw32-gcc -shared -Iinclude src/matrix.c   -o bin/libcalc_matrix.dll  -Wl,--out-implib,bin/libcalc_matrix.dll.a
-x86_64-w64-mingw32-gcc -shared -Iinclude src/complex.c  -o bin/libcalc_complex.dll -Wl,--out-implib,bin/libcalc_complex.dll.a
+# 复数库无依赖，先编；核心库依赖复数，需链入
+x86_64-w64-mingw32-gcc -shared -Iinclude src/complex.c   -o bin/libcalc_complex.dll -Wl,--out-implib,bin/libcalc_complex.dll.a
+x86_64-w64-mingw32-gcc -shared -Iinclude src/units.c     -o bin/libcalc_units.dll   -Wl,--out-implib,bin/libcalc_units.dll.a
+x86_64-w64-mingw32-gcc -shared -Iinclude src/matrix.c    -o bin/libcalc_matrix.dll  -Wl,--out-implib,bin/libcalc_matrix.dll.a
+x86_64-w64-mingw32-gcc -shared -Iinclude src/calculator.c -o bin/libcalc_core.dll  -Wl,--out-implib,bin/libcalc_core.dll.a -Lbin -lcalc_complex
 echo ':: 编译 CLI -> bin/Calculator.exe'
 x86_64-w64-mingw32-gcc -Iinclude src/main.c -o bin/Calculator.exe -Lbin -lcalc_core -lcalc_units -lcalc_matrix -lcalc_complex
 echo ':: 编译 GTK4 GUI -> gui/Calculator-gui.exe'
