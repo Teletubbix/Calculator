@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define GUI_VERSION "4.2.0"
+#define GUI_VERSION "4.3.0"
 
 /* —— 主题（东京之夜 / Tokyonight 风格）—— */
 static const char *CSS =
@@ -68,7 +68,7 @@ typedef struct {
     GtkWidget *entry;        /* 表达式输入框（显示屏） */
     GtkWidget *result;       /* 结果标签 */
     GtkWidget *mode_btn;     /* 角度制切换按钮 */
-    double ans;              /* 上一次结果（完整精度） */
+    CalcComplex ans;         /* 上一次结果（复数，完整精度） */
     int has_ans;             /* 是否已有结果 */
     CalcAngleMode mode;      /* 当前角度制 */
 } AppState;
@@ -108,19 +108,25 @@ static void on_backspace(GtkButton *button, gpointer data) {
 
 static void do_evaluate(void) {
     const char *expr = gtk_editable_get_text(GTK_EDITABLE(g_state.entry));
-    double result = 0.0;
+    CalcComplex result = {0, 0};
     char error[512] = {0};
-    int rc = calc_evaluate_mode(expr, g_state.mode,
-                                g_state.ans, g_state.has_ans,
-                                &result, error, sizeof(error));
+    int rc = calc_evaluate_complex(expr, g_state.mode,
+                                   g_state.ans, g_state.has_ans,
+                                   &result, error, sizeof(error));
     if (rc != 0) {
         gtk_label_set_label(GTK_LABEL(g_state.result), error);
         return;
     }
     g_state.ans = result;
     g_state.has_ans = 1;
-    char out[64];
-    snprintf(out, sizeof(out), "= %.15g", result);
+    double tol = 1e-12 * (1.0 + fabs(result.re) + fabs(result.im));
+    char out[160];
+    if (fabs(result.im) < tol) {
+        snprintf(out, sizeof(out), "= %.15g", result.re);
+    } else {
+        snprintf(out, sizeof(out), "= %.15g %s %.15gj", result.re,
+                 (result.im < 0.0 ? "-" : "+"), fabs(result.im));
+    }
     gtk_label_set_label(GTK_LABEL(g_state.result), out);
 }
 

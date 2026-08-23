@@ -3,6 +3,9 @@
 
 #include <stddef.h>
 
+/* 复数类型（供复数求值 API 使用；complex.h 也复用此定义） */
+typedef struct { double re; double im; } CalcComplex;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -73,6 +76,18 @@ int calc_evaluate_mode(const char *expression,
                        double *result,
                        char *error_buffer,
                        size_t error_buffer_size);
+
+/*
+ * 复数求值 API：完整支持 j/i 虚数单位与复数结果。
+ * 返回值、Ans 均为复数；可判断结果实部/虚部。
+ */
+int calc_evaluate_complex(const char *expression,
+                          CalcAngleMode mode,
+                          CalcComplex ans,
+                          int has_ans,
+                          CalcComplex *result,
+                          char *error_buffer,
+                          size_t error_buffer_size);
 
 /* ------------------------------------------------------------------ */
 /* 插件式函数注册表：每个算法库向引擎注册可被表达式调用的函数。          */

@@ -18,6 +18,7 @@
  */
 
 #include "calculator.h"
+#include "complex.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -152,7 +153,7 @@ typedef struct {
     int failed;               /* 是否已经发生错误 */
     int error_pos;            /* 错误位置（字节下标） */
     char message[MAX_ERROR_LEN + 1];
-    double ans_value;         /* 上一次计算结果，供 Ans 使用 */
+    CalcComplex ans_value;         /* 上一次计算结果，供 Ans 使用 */
     int has_ans;              /* 是否已经有上一次计算结果 */
     CalcAngleMode mode;       /* 三角函数角度制 */
 } Parser;
@@ -180,46 +181,45 @@ static int ident_equals(const char *ident, const char *name) {
     return *ident == '\0' && *name == '\0';
 }
 
-static double parse_expression(Parser *p);
-static double parse_term(Parser *p);
-static double parse_unary(Parser *p);
-static double parse_power(Parser *p);
-static double parse_postfix(Parser *p);
-static double parse_primary(Parser *p);
+static CalcComplex parse_expression(Parser *p);
+static CalcComplex parse_term(Parser *p);
+static CalcComplex parse_unary(Parser *p);
+static CalcComplex parse_power(Parser *p);
+static CalcComplex parse_postfix(Parser *p);
+static CalcComplex parse_primary(Parser *p);
 
-/* 二元运算，同时做定义域检查 */
-static double binary_op(Parser *p, int pos, char op, double a, double b) {
-    double r;
+/* 便捷构造：实数 */
+static CalcComplex zc(double re) { CalcComplex z = { re, 0.0 }; return z; }
+
+/* 二元运算（复数），并做定义域检查 */
+static CalcComplex binary_op(Parser *p, int pos, char op, CalcComplex a, CalcComplex b) {
+    CalcComplex r;
     switch (op) {
-        case '+': r = a + b; break;
-        case '-': r = a - b; break;
-        case '*': r = a * b; break;
+        case '+': r = calc_c_add(a, b); break;
+        case '-': r = calc_c_sub(a, b); break;
+        case '*': r = calc_c_mul(a, b); break;
         case '/':
-            if (b == 0.0) {
+            if (b.re == 0.0 && b.im == 0.0) {
                 parser_set_error(p, pos, "除法错误：除数不能为 0");
-                return 0.0;
+                return zc(0.0);
             }
-            r = a / b;
+            r = calc_c_div(a, b);
             break;
-        case '^': {
-            errno = 0;
-            r = pow(a, b);
-            if (errno == EDOM || isnan(r)) {
-                parser_set_error(p, pos,
-                                 "乘方错误：底数为负数时，指数必须是整数（例如 (-2)^2，"
-                                 "而 (-2)^0.5 在实数范围内无定义）");
-                return 0.0;
+        case '^':
+            r = calc_c_pow(a, b);
+            if (isnan(r.re) || isnan(r.im)) {
+                parser_set_error(p, pos, "乘方结果无定义（如 0 的负次幂）");
+                return zc(0.0);
             }
             break;
-        }
         default:
             parser_set_error(p, pos, "内部错误：未知运算符 '%c'", op);
-            return 0.0;
+            return zc(0.0);
     }
-    /* 集中检测所有算术运算的溢出：结果非有限而操作数有限 */
-    if (isinf(r) && isfinite(a) && isfinite(b)) {
+    /* 溢出检测：结果非有限 */
+    if (!isfinite(r.re) || !isfinite(r.im)) {
         parser_set_error(p, pos, "计算结果超出 double 可表示的范围");
-        return 0.0;
+        return zc(0.0);
     }
     return r;
 }
@@ -244,178 +244,169 @@ static double rad_to_angle(Parser *p, double x) {
     }
 }
 
-/* 一元函数，同时做定义域检查 */
-static double unary_function(Parser *p, int pos, const char *name, double x) {
-    /* 三角函数（受角度制影响） */
-    if (ident_equals(name, "sin")) { return sin(angle_to_rad(p, x)); }
-    if (ident_equals(name, "cos")) { return cos(angle_to_rad(p, x)); }
-    if (ident_equals(name, "tan")) { return tan(angle_to_rad(p, x)); }
+/* 一元函数（复数），并做定义域检查 */
+static CalcComplex unary_function(Parser *p, int pos, const char *name, CalcComplex x) {
+    /* 三角函数（受角度制影响；复数输入按弧度处理） */
+    if (ident_equals(name, "sin")) {
+        if (x.im == 0.0) return calc_c_sin(zc(angle_to_rad(p, x.re)));
+        return calc_c_sin(x);
+    }
+    if (ident_equals(name, "cos")) {
+        if (x.im == 0.0) return calc_c_cos(zc(angle_to_rad(p, x.re)));
+        return calc_c_cos(x);
+    }
+    if (ident_equals(name, "tan")) {
+        if (x.im == 0.0) return calc_c_tan(zc(angle_to_rad(p, x.re)));
+        return calc_c_tan(x);
+    }
 
-    /* 三角函数（恒为角度制） */
-    if (ident_equals(name, "sind")) { return sin(x * M_PI / 180.0); }
-    if (ident_equals(name, "cosd")) { return cos(x * M_PI / 180.0); }
-    if (ident_equals(name, "tand")) { return tan(x * M_PI / 180.0); }
+    /* 恒为角度制的三角函数：只接受实数输入 */
+    if (ident_equals(name, "sind") || ident_equals(name, "cosd") || ident_equals(name, "tand")) {
+        if (x.im != 0.0) { parser_set_error(p, pos, "函数 '%s' 只接受实数角度", name); return zc(0.0); }
+        double rad = x.re * M_PI / 180.0;
+        if (ident_equals(name, "sind")) return zc(sin(rad));
+        if (ident_equals(name, "cosd")) return zc(cos(rad));
+        return zc(tan(rad));
+    }
 
-    /* 反三角函数（结果按当前角度制输出） */
+    /* 反三角：实数输入按角度模式输出；复数输入给主值（弧度） */
     if (ident_equals(name, "asin")) {
-        if (x < -1.0 || x > 1.0) {
-            parser_set_error(p, pos, "asin 定义域错误：输入必须在 [-1, 1] 之间");
-            return 0.0;
-        }
-        return rad_to_angle(p, asin(x));
+        CalcComplex r = calc_c_asin(x);
+        if (r.im == 0.0) return zc(rad_to_angle(p, r.re));
+        return r;
     }
     if (ident_equals(name, "acos")) {
-        if (x < -1.0 || x > 1.0) {
-            parser_set_error(p, pos, "acos 定义域错误：输入必须在 [-1, 1] 之间");
-            return 0.0;
-        }
-        return rad_to_angle(p, acos(x));
+        CalcComplex r = calc_c_acos(x);
+        if (r.im == 0.0) return zc(rad_to_angle(p, r.re));
+        return r;
     }
     if (ident_equals(name, "atan")) {
-        return rad_to_angle(p, atan(x));
+        CalcComplex r = calc_c_atan(x);
+        if (r.im == 0.0) return zc(rad_to_angle(p, r.re));
+        return r;
     }
-    if (ident_equals(name, "asind")) {
-        if (x < -1.0 || x > 1.0) {
-            parser_set_error(p, pos, "asind 定义域错误：输入必须在 [-1, 1] 之间");
-            return 0.0;
-        }
-        return asin(x) * 180.0 / M_PI;
-    }
-    if (ident_equals(name, "acosd")) {
-        if (x < -1.0 || x > 1.0) {
-            parser_set_error(p, pos, "acosd 定义域错误：输入必须在 [-1, 1] 之间");
-            return 0.0;
-        }
-        return acos(x) * 180.0 / M_PI;
-    }
-    if (ident_equals(name, "atand")) {
-        return atan(x) * 180.0 / M_PI;
+    /* 反三角（角度输出）：只接受实数 */
+    if (ident_equals(name, "asind") || ident_equals(name, "acosd") || ident_equals(name, "atand")) {
+        if (x.im != 0.0) { parser_set_error(p, pos, "函数 '%s' 只接受实数", name); return zc(0.0); }
+        CalcComplex r;
+        if (ident_equals(name, "asind")) r = calc_c_asin(x);
+        else if (ident_equals(name, "acosd")) r = calc_c_acos(x);
+        else r = calc_c_atan(x);
+        if (r.im != 0.0) { parser_set_error(p, pos, "函数 '%s' 输入超出定义域", name); return zc(0.0); }
+        return zc(r.re * 180.0 / M_PI);
     }
 
     /* 双曲函数 */
-    if (ident_equals(name, "sinh")) { return sinh(x); }
-    if (ident_equals(name, "cosh")) { return cosh(x); }
-    if (ident_equals(name, "tanh")) { return tanh(x); }
+    if (ident_equals(name, "sinh")) return calc_c_sinh(x);
+    if (ident_equals(name, "cosh")) return calc_c_cosh(x);
+    if (ident_equals(name, "tanh")) return calc_c_tanh(x);
 
-    if (ident_equals(name, "sqrt")) {
-        if (x < 0.0) {
-            parser_set_error(p, pos, "sqrt 定义域错误：负数没有实数平方根");
-            return 0.0;
-        }
-        return sqrt(x);
-    }
-    if (ident_equals(name, "ln")) {
-        if (x <= 0.0) {
-            parser_set_error(p, pos, "ln 定义域错误：真数必须大于 0");
-            return 0.0;
-        }
-        return log(x);
-    }
-    if (ident_equals(name, "log")) {    /* 常用对数，底数为 10 */
-        if (x <= 0.0) {
-            parser_set_error(p, pos, "log 定义域错误：真数必须大于 0");
-            return 0.0;
-        }
-        return log10(x);
-    }
-    if (ident_equals(name, "log2")) {   /* 底数为 2 的对数 */
-        if (x <= 0.0) {
-            parser_set_error(p, pos, "log2 定义域错误：真数必须大于 0");
-            return 0.0;
-        }
-        return log2(x);
-    }
-    if (ident_equals(name, "exp")) {
-        errno = 0;
-        double r = exp(x);
-        if (errno == ERANGE) {
-            parser_set_error(p, pos, "exp 结果超出 double 可表示的范围");
-            return 0.0;
-        }
-        return r;
-    }
-    if (ident_equals(name, "abs")) {
-        return fabs(x);
-    }
+    /* 复数友好的开根/对数/指数 */
+    if (ident_equals(name, "sqrt")) return calc_c_sqrt(x);
+    if (ident_equals(name, "ln"))   return calc_c_log(x);
+    if (ident_equals(name, "log"))  return calc_c_mul(zc(1.0 / log(10.0)), calc_c_log(x)); /* log10 */
+    if (ident_equals(name, "log2")) return calc_c_mul(zc(1.0 / log(2.0)),  calc_c_log(x));
+    if (ident_equals(name, "exp"))  return calc_c_exp(x);
+    if (ident_equals(name, "abs"))  return zc(calc_c_abs(x));    /* 模（实数） */
+
+    /* 实数专用函数 */
     if (ident_equals(name, "sign")) {
-        return (x > 0.0) ? 1.0 : (x < 0.0) ? -1.0 : 0.0;
+        if (x.im != 0.0) { parser_set_error(p, pos, "sign 只接受实数"); return zc(0.0); }
+        return zc((x.re > 0.0) ? 1.0 : (x.re < 0.0) ? -1.0 : 0.0);
     }
-    if (ident_equals(name, "floor")) { return floor(x); }
-    if (ident_equals(name, "ceil"))  { return ceil(x); }
-    if (ident_equals(name, "round")) { return round(x); }
-    if (ident_equals(name, "trunc")) { return trunc(x); }
+    if (ident_equals(name, "floor") || ident_equals(name, "ceil") ||
+        ident_equals(name, "round") || ident_equals(name, "trunc")) {
+        if (x.im != 0.0) { parser_set_error(p, pos, "函数 '%s' 只接受实数", name); return zc(0.0); }
+        if (ident_equals(name, "floor")) return zc(floor(x.re));
+        if (ident_equals(name, "ceil"))  return zc(ceil(x.re));
+        if (ident_equals(name, "round")) return zc(round(x.re));
+        return zc(trunc(x.re));
+    }
 
     parser_set_error(p, pos, "未知函数 '%s'", name);
-    return 0.0;
+    return zc(0.0);
 }
 
 /* 二元函数（两个参数），做定义域检查 */
-static double binary_function(Parser *p, int pos, const char *name, double a, double b) {
+static CalcComplex binary_function(Parser *p, int pos, const char *name, CalcComplex a, CalcComplex b) {
     if (ident_equals(name, "atan2")) {
-        return rad_to_angle(p, atan2(a, b));
+        if (a.im != 0.0 || b.im != 0.0) { parser_set_error(p, pos, "atan2 只接受实数"); return zc(0.0); }
+        return zc(rad_to_angle(p, atan2(a.re, b.re)));
     }
     if (ident_equals(name, "mod")) {
-        if (b == 0.0) {
-            parser_set_error(p, pos, "mod 错误：模数不能为 0");
-            return 0.0;
-        }
-        double r = fmod(a, b);
-        return r;
+        if (a.im != 0.0 || b.im != 0.0) { parser_set_error(p, pos, "mod 只接受实数"); return zc(0.0); }
+        if (b.re == 0.0) { parser_set_error(p, pos, "mod 错误：模数不能为 0"); return zc(0.0); }
+        return zc(fmod(a.re, b.re));
     }
     if (ident_equals(name, "gcd")) {
-        long long x = (long long)llround(a);
-        long long y = (long long)llround(b);
-        if (a < 0.0 || b < 0.0 || (double)x != a || (double)y != b) {
-            parser_set_error(p, pos, "gcd 要求两个非负整数，例如 gcd(12,18)");
-            return 0.0;
+        if (a.im != 0.0 || b.im != 0.0) { parser_set_error(p, pos, "gcd 只接受实数"); return zc(0.0); }
+        long long x = (long long)llround(a.re), y = (long long)llround(b.re);
+        if (a.re < 0.0 || b.re < 0.0 || (double)x != a.re || (double)y != b.re) {
+            parser_set_error(p, pos, "gcd 要求两个非负整数，例如 gcd(12,18)"); return zc(0.0);
         }
         while (y != 0) { long long t = x % y; x = y; y = t; }
-        return (double)x;
+        return zc((double)x);
     }
     if (ident_equals(name, "lcm")) {
-        long long x = (long long)llround(a);
-        long long y = (long long)llround(b);
-        if (a < 0.0 || b < 0.0 || (double)x != a || (double)y != b || (x == 0 && y == 0)) {
-            parser_set_error(p, pos, "lcm 要求两个非负整数，例如 lcm(4,6)");
-            return 0.0;
+        if (a.im != 0.0 || b.im != 0.0) { parser_set_error(p, pos, "lcm 只接受实数"); return zc(0.0); }
+        long long x = (long long)llround(a.re), y = (long long)llround(b.re);
+        if (a.re < 0.0 || b.re < 0.0 || (double)x != a.re || (double)y != b.re || (x == 0 && y == 0)) {
+            parser_set_error(p, pos, "lcm 要求两个非负整数，例如 lcm(4,6)"); return zc(0.0);
         }
         long long g = x, h = y;
         while (h != 0) { long long t = g % h; g = h; h = t; }
-        return (double)(x / g * y);
+        return zc((double)(x / g * y));
     }
-    if (ident_equals(name, "comb")) {   /* 组合数 C(n,k) */
-        long long n = (long long)llround(a);
-        long long k = (long long)llround(b);
-        if (a < 0.0 || b < 0.0 || (double)n != a || (double)k != b || k > n || n > 60.0) {
-            parser_set_error(p, pos, "comb 要求 n>=k>=0 且 n<=60，例如 comb(10,3)");
-            return 0.0;
+    if (ident_equals(name, "comb")) {
+        if (a.im != 0.0 || b.im != 0.0) { parser_set_error(p, pos, "comb 只接受实数"); return zc(0.0); }
+        long long n = (long long)llround(a.re), k = (long long)llround(b.re);
+        if (a.re < 0.0 || b.re < 0.0 || (double)n != a.re || (double)k != b.re || k > n || n > 60.0) {
+            parser_set_error(p, pos, "comb 要求 n>=k>=0 且 n<=60，例如 comb(10,3)"); return zc(0.0);
         }
         if (k > n - k) k = n - k;
         double r = 1.0;
         for (long long i = 1; i <= k; i++) r = r * (double)(n - k + i) / (double)i;
-        return r;
+        return zc(r);
     }
-    if (ident_equals(name, "perm")) {   /* 排列数 P(n,k) */
-        long long n = (long long)llround(a);
-        long long k = (long long)llround(b);
-        if (a < 0.0 || b < 0.0 || (double)n != a || (double)k != b || k > n || n > 170.0) {
-            parser_set_error(p, pos, "perm 要求 n>=k>=0 且 n<=170，例如 perm(10,3)");
-            return 0.0;
+    if (ident_equals(name, "perm")) {
+        if (a.im != 0.0 || b.im != 0.0) { parser_set_error(p, pos, "perm 只接受实数"); return zc(0.0); }
+        long long n = (long long)llround(a.re), k = (long long)llround(b.re);
+        if (a.re < 0.0 || b.re < 0.0 || (double)n != a.re || (double)k != b.re || k > n || n > 170.0) {
+            parser_set_error(p, pos, "perm 要求 n>=k>=0 且 n<=170，例如 perm(10,3)"); return zc(0.0);
         }
         double r = 1.0;
         for (long long i = 0; i < k; i++) r *= (double)(n - i);
-        return r;
+        return zc(r);
     }
-    if (ident_equals(name, "logn")) {   /* 以 b 为底 a 的对数 */
-        if (a <= 0.0 || b <= 1.0 || b == 1.0) {
-            parser_set_error(p, pos, "logn 定义域错误：真数>0 且底数>0 且底数≠1");
-            return 0.0;
+    if (ident_equals(name, "logn")) {
+        if (a.im != 0.0 || b.im != 0.0) { parser_set_error(p, pos, "logn 只接受实数"); return zc(0.0); }
+        if (a.re <= 0.0 || b.re <= 1.0) {
+            parser_set_error(p, pos, "logn 定义域错误：真数>0 且底数>1"); return zc(0.0);
         }
-        return log(a) / log(b);
+        return zc(log(a.re) / log(b.re));
     }
-
     parser_set_error(p, pos, "未知二元函数 '%s'", name);
-    return 0.0;
+    return zc(0.0);
+}
+
+/* 阶乘：只对 0~170 的非负整数有定义 */
+static CalcComplex factorial_op(Parser *p, int pos, CalcComplex x) {
+    if (x.im != 0.0) {
+        parser_set_error(p, pos, "阶乘错误：n! 要求 n 是非负整数");
+        return zc(0.0);
+    }
+    double v = x.re;
+    if (v < 0.0 || floor(v) != v) {
+        parser_set_error(p, pos, "阶乘错误：n! 要求 n 是非负整数（例如 5!）");
+        return zc(0.0);
+    }
+    if (v > 170.0) {
+        parser_set_error(p, pos, "阶乘错误：n 太大，171! 已超出 double 可表示的范围");
+        return zc(0.0);
+    }
+    double r = 1.0;
+    for (int i = 2; i <= (int)v; i++) r *= (double)i;
+    return zc(r);
 }
 
 /* ------------------------------------------------------------------ */
@@ -452,42 +443,25 @@ static calc_engine_fn registry_lookup(const char *name) {
     return NULL;
 }
 
-/* 阶乘只对 0~170 的非负整数有定义（171! 已超出 double 范围） */
-static double factorial_op(Parser *p, int pos, double x) {
-    if (x < 0.0 || floor(x) != x) {
-        parser_set_error(p, pos, "阶乘错误：n! 要求 n 是非负整数（例如 5!）");
-        return 0.0;
-    }
-    if (x > 170.0) {
-        parser_set_error(p, pos, "阶乘错误：n 太大，171! 已超出 double 可表示的范围");
-        return 0.0;
-    }
-    double r = 1.0;
-    for (int i = 2; i <= (int)x; i++) {
-        r *= (double)i;
-    }
-    return r;
-}
-
 /*
  * expression -> term (('+' | '-') term)*
  */
-static double parse_expression(Parser *p) {
-    double left = parse_term(p);
+static CalcComplex parse_expression(Parser *p) {
+    CalcComplex left = parse_term(p);
     if (p->failed) {
-        return 0.0;
+        return zc(0.0);
     }
     while (p->lx.type == TOK_PLUS || p->lx.type == TOK_MINUS) {
         char op = (p->lx.type == TOK_PLUS) ? '+' : '-';
         int op_pos = p->lx.token_pos;
         lexer_next(&p->lx);
-        double right = parse_term(p);
+        CalcComplex right = parse_term(p);
         if (p->failed) {
-            return 0.0;
+            return zc(0.0);
         }
         left = binary_op(p, op_pos, op, left, right);
         if (p->failed) {
-            return 0.0;
+            return zc(0.0);
         }
     }
     return left;
@@ -496,22 +470,22 @@ static double parse_expression(Parser *p) {
 /*
  * term -> unary (('*' | '/') unary)*
  */
-static double parse_term(Parser *p) {
-    double left = parse_unary(p);
+static CalcComplex parse_term(Parser *p) {
+    CalcComplex left = parse_unary(p);
     if (p->failed) {
-        return 0.0;
+        return zc(0.0);
     }
     while (p->lx.type == TOK_STAR || p->lx.type == TOK_SLASH) {
         char op = (p->lx.type == TOK_STAR) ? '*' : '/';
         int op_pos = p->lx.token_pos;
         lexer_next(&p->lx);
-        double right = parse_unary(p);
+        CalcComplex right = parse_unary(p);
         if (p->failed) {
-            return 0.0;
+            return zc(0.0);
         }
         left = binary_op(p, op_pos, op, left, right);
         if (p->failed) {
-            return 0.0;
+            return zc(0.0);
         }
     }
     return left;
@@ -523,16 +497,16 @@ static double parse_term(Parser *p) {
  * 这样设计后，-3^2 按数学惯例等于 -(3^2) = -9；
  * 如果要计算 (-3)^2 = 9，请显式加括号。
  */
-static double parse_unary(Parser *p) {
+static CalcComplex parse_unary(Parser *p) {
     if (p->lx.type == TOK_PLUS || p->lx.type == TOK_MINUS) {
         char sign = (p->lx.type == TOK_PLUS) ? '+' : '-';
         lexer_next(&p->lx);
-        double value = parse_unary(p);
+        CalcComplex value = parse_unary(p);
         if (p->failed) {
-            return 0.0;
+            return zc(0.0);
         }
         if (sign == '-') {
-            return -value;
+            return calc_c_mul(zc(-1.0), value);
         }
         return value;
     }
@@ -545,17 +519,17 @@ static double parse_unary(Parser *p) {
  * 幂运算右结合：2^3^2 = 2^(3^2) = 512。
  * 指数部分复用 unary，因此允许 2^-2 这类写法。
  */
-static double parse_power(Parser *p) {
-    double base = parse_postfix(p);
+static CalcComplex parse_power(Parser *p) {
+    CalcComplex base = parse_postfix(p);
     if (p->failed) {
-        return 0.0;
+        return zc(0.0);
     }
     if (p->lx.type == TOK_CARET) {
         int op_pos = p->lx.token_pos;
         lexer_next(&p->lx);
-        double exponent = parse_unary(p);
+        CalcComplex exponent = parse_unary(p);
         if (p->failed) {
-            return 0.0;
+            return zc(0.0);
         }
         return binary_op(p, op_pos, '^', base, exponent);
     }
@@ -565,10 +539,10 @@ static double parse_power(Parser *p) {
 /*
  * postfix -> primary '!'?
  */
-static double parse_postfix(Parser *p) {
-    double value = parse_primary(p);
+static CalcComplex parse_postfix(Parser *p) {
+    CalcComplex value = parse_primary(p);
     if (p->failed) {
-        return 0.0;
+        return zc(0.0);
     }
     if (p->lx.type == TOK_BANG) {
         int bang_pos = p->lx.token_pos;
@@ -584,11 +558,18 @@ static double parse_postfix(Parser *p) {
  *          | 函数 '(' 参数列表 ')'
  *          | '(' expression ')'
  */
-static double parse_primary(Parser *p) {
+static CalcComplex parse_primary(Parser *p) {
     if (p->lx.type == TOK_NUMBER) {
-        double value = p->lx.number;
+        double num = p->lx.number;
         lexer_next(&p->lx);
-        return value;
+        /* 数字后紧跟 j/i 视为虚数，如 4j、2i */
+        if (p->lx.type == TOK_IDENT &&
+            (ident_equals(p->lx.ident, "j") || ident_equals(p->lx.ident, "i"))) {
+            lexer_next(&p->lx);
+            CalcComplex u = { 0.0, num };
+            return u;
+        }
+        return zc(num);
     }
 
     if (p->lx.type == TOK_IDENT) {
@@ -602,17 +583,17 @@ static double parse_primary(Parser *p) {
             lexer_next(&p->lx); /* 跳过 '(' */
 
             /* 解析参数列表（逗号分隔）。二元/矩阵函数按参数个数分派 */
-            double args[9];
+            CalcComplex args[9];
             int nargs = 0;
             while (1) {
                 if (nargs >= 9) {
                     parser_set_error(p, p->lx.token_pos,
                                      "函数 '%s' 参数过多（最多 9 个）", name);
-                    return 0.0;
+                    return zc(0.0);
                 }
                 args[nargs++] = parse_expression(p);
                 if (p->failed) {
-                    return 0.0;
+                    return zc(0.0);
                 }
                 if (p->lx.type == TOK_COMMA) {
                     lexer_next(&p->lx);
@@ -622,20 +603,28 @@ static double parse_primary(Parser *p) {
             }
             if (p->lx.type != TOK_RPAREN) {
                 parser_set_error(p, p->lx.token_pos, "函数 '%s' 缺少右括号 ')'", name);
-                return 0.0;
+                return zc(0.0);
             }
             lexer_next(&p->lx);
 
             /* 先在注册表中查找（算法库注册的矩阵/复数等函数） */
             calc_engine_fn reg = registry_lookup(name);
             if (reg != NULL) {
+                double dargs[9];
+                for (int i = 0; i < nargs; i++) {
+                    if (args[i].im != 0.0) {
+                        parser_set_error(p, ident_pos, "函数 '%s' 需要实数参数", name);
+                        return zc(0.0);
+                    }
+                    dargs[i] = args[i].re;
+                }
                 char rerr[256] = {0};
-                double r = reg(args, nargs, p->mode, rerr, sizeof(rerr));
+                double r = reg(dargs, nargs, p->mode, rerr, sizeof(rerr));
                 if (rerr[0] != '\0') {
                     parser_set_error(p, ident_pos, "%s", rerr);
-                    return 0.0;
+                    return zc(0.0);
                 }
-                return r;
+                return zc(r);
             }
 
             if (nargs == 1) {
@@ -648,43 +637,39 @@ static double parse_primary(Parser *p) {
                 return binary_function(p, ident_pos, name, args[0], args[1]);
             }
             parser_set_error(p, p->lx.token_pos, "函数 '%s' 参数个数不正确", name);
-            return 0.0;
+            return zc(0.0);
         }
 
         /* 不是函数，就按常量处理 */
-        if (ident_equals(name, "pi")) {
-            return M_PI;
-        }
-        if (ident_equals(name, "e")) {
-            return M_E;
-        }
-        if (ident_equals(name, "tau")) {
-            return 2.0 * M_PI;
-        }
-        if (ident_equals(name, "phi")) {
-            return (1.0 + sqrt(5.0)) / 2.0;
+        if (ident_equals(name, "pi"))   return zc(M_PI);
+        if (ident_equals(name, "e"))    return zc(M_E);
+        if (ident_equals(name, "tau"))  return zc(2.0 * M_PI);
+        if (ident_equals(name, "phi"))  return zc((1.0 + sqrt(5.0)) / 2.0);
+        if (ident_equals(name, "j") || ident_equals(name, "i")) {
+            CalcComplex u = { 0.0, 1.0 };   /* 虚数单位 j/i */
+            return u;
         }
         if (ident_equals(name, "ans")) {
             if (!p->has_ans) {
                 parser_set_error(p, ident_pos,
                                  "还没有上一次计算结果，请先完成一次计算再使用 Ans");
-                return 0.0;
+                return zc(0.0);
             }
             return p->ans_value;
         }
-        parser_set_error(p, ident_pos, "未知常量 '%s'（可用常量：pi、e、tau、phi、Ans）", name);
-        return 0.0;
+        parser_set_error(p, ident_pos, "未知常量 '%s'（可用常量：pi、e、tau、phi、j、Ans）", name);
+        return zc(0.0);
     }
 
     if (p->lx.type == TOK_LPAREN) {
         lexer_next(&p->lx);
-        double value = parse_expression(p);
+        CalcComplex value = parse_expression(p);
         if (p->failed) {
-            return 0.0;
+            return zc(0.0);
         }
         if (p->lx.type != TOK_RPAREN) {
             parser_set_error(p, p->lx.token_pos, "缺少右括号 ')'");
-            return 0.0;
+            return zc(0.0);
         }
         lexer_next(&p->lx);
         return value;
@@ -692,11 +677,11 @@ static double parse_primary(Parser *p) {
 
     if (p->lx.type == TOK_ERROR) {
         parser_set_error(p, p->lx.token_pos, "存在无法识别的字符或数字格式");
-        return 0.0;
+        return zc(0.0);
     }
 
     parser_set_error(p, p->lx.token_pos, "此处应为数字、常量、函数或左括号 '('");
-    return 0.0;
+    return zc(0.0);
 }
 
 /* ------------------------------------------------------------------ */
@@ -735,9 +720,9 @@ static void format_error(const char *message,
 
 static int calc_evaluate_impl(const char *expression,
                               CalcAngleMode mode,
-                              double ans_value,
+                              CalcComplex ans_value,
                               int has_ans,
-                              double *result,
+                              CalcComplex *result,
                               char *error_buffer,
                               size_t error_buffer_size) {
     if (expression == NULL || result == NULL) {
@@ -752,7 +737,7 @@ static int calc_evaluate_impl(const char *expression,
     lexer_init(&p.lx, expression);
     lexer_next(&p.lx);
 
-    double value = parse_expression(&p);
+    CalcComplex value = parse_expression(&p);
 
     if (!p.failed && p.lx.type != TOK_END) {
         parser_set_error(&p, p.lx.token_pos, "表达式在此处无法继续解析");
@@ -766,10 +751,10 @@ static int calc_evaluate_impl(const char *expression,
         return -1;
     }
 
-    if (isnan(value) || isinf(value)) {
+    if (!isfinite(value.re) || !isfinite(value.im)) {
         if (error_buffer != NULL && error_buffer_size > 0) {
             snprintf(error_buffer, error_buffer_size,
-                     "计算结果不是有限实数（NaN 或 Inf），请检查表达式\n");
+                     "计算结果不是有限数（NaN 或 Inf），请检查表达式\n");
         }
         return -1;
     }
@@ -778,12 +763,27 @@ static int calc_evaluate_impl(const char *expression,
     return 0;
 }
 
+/* 复数求值 API（完整，支持 j 与复数结果） */
+int calc_evaluate_complex(const char *expression,
+                          CalcAngleMode mode,
+                          CalcComplex ans,
+                          int has_ans,
+                          CalcComplex *result,
+                          char *error_buffer,
+                          size_t error_buffer_size) {
+    return calc_evaluate_impl(expression, mode, ans, has_ans, result,
+                              error_buffer, error_buffer_size);
+}
+
 int calc_evaluate(const char *expression,
                   double *result,
                   char *error_buffer,
                   size_t error_buffer_size) {
-    return calc_evaluate_impl(expression, CALC_MODE_RAD, 0.0, 0, result,
-                              error_buffer, error_buffer_size);
+    CalcComplex c = { 0, 0 };
+    int rc = calc_evaluate_impl(expression, CALC_MODE_RAD, zc(0.0), 0, &c,
+                                error_buffer, error_buffer_size);
+    if (rc == 0) *result = c.re;
+    return rc;
 }
 
 int calc_evaluate_with_ans(const char *expression,
@@ -792,8 +792,11 @@ int calc_evaluate_with_ans(const char *expression,
                            double *result,
                            char *error_buffer,
                            size_t error_buffer_size) {
-    return calc_evaluate_impl(expression, CALC_MODE_RAD, ans, has_ans, result,
-                              error_buffer, error_buffer_size);
+    CalcComplex c = { 0, 0 };
+    int rc = calc_evaluate_impl(expression, CALC_MODE_RAD, zc(ans), has_ans, &c,
+                                error_buffer, error_buffer_size);
+    if (rc == 0) *result = c.re;
+    return rc;
 }
 
 int calc_evaluate_mode(const char *expression,
@@ -803,6 +806,9 @@ int calc_evaluate_mode(const char *expression,
                        double *result,
                        char *error_buffer,
                        size_t error_buffer_size) {
-    return calc_evaluate_impl(expression, mode, ans, has_ans, result,
-                              error_buffer, error_buffer_size);
+    CalcComplex c = { 0, 0 };
+    int rc = calc_evaluate_impl(expression, mode, zc(ans), has_ans, &c,
+                                error_buffer, error_buffer_size);
+    if (rc == 0) *result = c.re;
+    return rc;
 }

@@ -77,6 +77,76 @@ CalcComplex calc_c_from_polar(double r, double theta) {
     return res;
 }
 
+/* —— 复数三角/双曲/反三角/幂 —— */
+
+CalcComplex calc_c_sin(CalcComplex z) {
+    CalcComplex iz  = calc_c_mul((CalcComplex){0, 1}, z);
+    CalcComplex niz = calc_c_mul((CalcComplex){0, -1}, z);
+    CalcComplex diff = calc_c_sub(calc_c_exp(iz), calc_c_exp(niz));
+    return calc_c_mul((CalcComplex){0, -0.5}, diff);          /* /(2i) = -i/2 */
+}
+
+CalcComplex calc_c_cos(CalcComplex z) {
+    CalcComplex iz  = calc_c_mul((CalcComplex){0, 1}, z);
+    CalcComplex niz = calc_c_mul((CalcComplex){0, -1}, z);
+    CalcComplex sum = calc_c_add(calc_c_exp(iz), calc_c_exp(niz));
+    return calc_c_mul((CalcComplex){0.5, 0}, sum);            /* /2 */
+}
+
+CalcComplex calc_c_tan(CalcComplex z) {
+    return calc_c_div(calc_c_sin(z), calc_c_cos(z));
+}
+
+CalcComplex calc_c_sinh(CalcComplex z) {
+    CalcComplex neg = calc_c_mul((CalcComplex){-1, 0}, z);
+    CalcComplex diff = calc_c_sub(calc_c_exp(z), calc_c_exp(neg));
+    return calc_c_mul((CalcComplex){0.5, 0}, diff);
+}
+
+CalcComplex calc_c_cosh(CalcComplex z) {
+    CalcComplex neg = calc_c_mul((CalcComplex){-1, 0}, z);
+    CalcComplex sum = calc_c_add(calc_c_exp(z), calc_c_exp(neg));
+    return calc_c_mul((CalcComplex){0.5, 0}, sum);
+}
+
+CalcComplex calc_c_tanh(CalcComplex z) {
+    return calc_c_div(calc_c_sinh(z), calc_c_cosh(z));
+}
+
+CalcComplex calc_c_asin(CalcComplex z) {
+    /* asin z = -i·log( i z + sqrt(1 - z^2) ) */
+    CalcComplex one = {1, 0};
+    CalcComplex z2 = calc_c_mul(z, z);
+    CalcComplex s = calc_c_sqrt(calc_c_sub(one, z2));
+    CalcComplex iz = calc_c_mul((CalcComplex){0, 1}, z);
+    CalcComplex l = calc_c_log(calc_c_add(iz, s));
+    return calc_c_mul((CalcComplex){0, -1}, l);
+}
+
+CalcComplex calc_c_acos(CalcComplex z) {
+    CalcComplex halfpi = { M_PI / 2, 0 };
+    return calc_c_sub(halfpi, calc_c_asin(z));
+}
+
+CalcComplex calc_c_atan(CalcComplex z) {
+    /* atan z = (i/2)·( log(1 - i z) - log(1 + i z) ) */
+    CalcComplex one = {1, 0};
+    CalcComplex iz = calc_c_mul((CalcComplex){0, 1}, z);
+    CalcComplex l1 = calc_c_log(calc_c_sub(one, iz));
+    CalcComplex l2 = calc_c_log(calc_c_add(one, iz));
+    return calc_c_mul((CalcComplex){0, 0.5}, calc_c_sub(l1, l2));
+}
+
+CalcComplex calc_c_pow(CalcComplex base, CalcComplex e) {
+    if (base.re == 0.0 && base.im == 0.0) {
+        CalcComplex one = {1, 0};
+        if (e.re == 0.0 && e.im == 0.0) return one;        /* 约定 0^0 = 1 */
+        if (e.re > 0.0) return (CalcComplex){0, 0};
+        CalcComplex r = {NAN, NAN}; return r;               /* 0 的非正次幂无定义 */
+    }
+    return calc_c_exp(calc_c_mul(e, calc_c_log(base)));
+}
+
 /* —— 供表达式引擎注册的复数函数（返回标量）—— */
 
 static double cx_cabs(const double *a, int n, CalcAngleMode mode,

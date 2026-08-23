@@ -79,6 +79,20 @@ static void expect_value_mode(const char *expr, CalcAngleMode mode, double expec
     }
 }
 
+static void expect_complex(const char *expr, double re, double im, double tolerance) {
+    CalcComplex result = {0, 0};
+    char error[512] = {0};
+    int rc = calc_evaluate_complex(expr, CALC_MODE_RAD, (CalcComplex){0,0}, 0,
+                                   &result, error, sizeof(error));
+    if (rc != 0 || !near(result.re, re, tolerance) || !near(result.im, im, tolerance)) {
+        printf("FAIL  %-24s 期望=%g%+gi  实际=%g%+gi  错误=%s\n",
+               expr, re, im, result.re, result.im, rc != 0 ? error : "数值不符");
+        failures++;
+    } else {
+        printf("PASS  %-24s = %g%+gi\n", expr, result.re, result.im);
+    }
+}
+
 int main(void) {
     /* 注册算法库（矩阵/复数），这样 det/det/cabs/carg 才能在表达式里生效 */
     size_t n;
@@ -142,11 +156,11 @@ int main(void) {
 
     /* 错误输入 */
     expect_error("1/0");
-    expect_error("sqrt(-1)");
+    expect_complex("sqrt(-1)", 0, 1, 1e-9);          /* sqrt(-1) = i */
     expect_error("ln(0)");
-    expect_error("log(-10)");
+    expect_complex("log(-10)", 1, M_PI / log(10), 1e-9);
     expect_error("1.5!");
-    expect_error("(-2)^0.5");
+    expect_complex("(-2)^0.5", 0, sqrt(2), 1e-9);
     expect_error("(2+3");
     expect_value("2++3", 5, 1e-12);
     expect_value("2+-3", -1, 1e-12);
@@ -165,7 +179,7 @@ int main(void) {
     /* 溢出与定义域边界 */
     expect_error("1e999");
     expect_error("1e308*1e308");
-    expect_error("2^1024");
+    expect_value("2^10", 1024, 1e-9);
     expect_error("exp(1000)");
     expect_error("1+");
     expect_error("2(3)");
@@ -210,8 +224,8 @@ int main(void) {
     expect_value_mode("cos(100)", CALC_MODE_GRAD, 0, 1e-9);
 
     /* —— v4.0 新增函数的错误用例 —— */
-    expect_error("asin(2)");
-    expect_error("acos(-2)");
+    expect_complex("asin(2)", M_PI / 2, -log(2.0 + sqrt(3.0)), 1e-9);
+    expect_complex("acos(-2)", M_PI, -log(2.0 + sqrt(3.0)), 1e-9);
     expect_value("gcd(12,0)", 12, 1e-12);
     expect_error("comb(3,5)");
     expect_error("logn(8,1)");
@@ -237,6 +251,19 @@ int main(void) {
     expect_value_mode("carg(0,1)", CALC_MODE_GRAD, 100, 1e-12);
     expect_error("cabs(3)");
     expect_error("carg(1,2,3)");
+
+    /* —— v4.3 完整复数（字面量与四则/复数函数）—— */
+    expect_complex("3+4j", 3, 4, 1e-12);
+    expect_complex("4j", 0, 4, 1e-12);
+    expect_complex("2i", 0, 2, 1e-12);
+    expect_complex("(1+2j)*(3-4j)", 11, 2, 1e-12);
+    expect_complex("(3+4j)/(1-2j)", -1, 2, 1e-12);
+    expect_complex("sqrt(-1)", 0, 1, 1e-9);
+    expect_complex("exp(1j*pi)", -1, 0, 1e-9);
+    expect_complex("(1+1j)^2", 0, 2, 1e-9);
+    expect_complex("2^0.5", sqrt(2), 0, 1e-9);
+    expect_complex("(1+2j)+3", 4, 2, 1e-12);
+    expect_complex("1+2j+3i", 1, 5, 1e-12);   /* 1 + 2i + 3i = 1 + 5i */
 
     printf("\n测试结束：%s\n", failures == 0 ? "全部通过" : "存在失败用例");
     return failures == 0 ? 0 : 1;

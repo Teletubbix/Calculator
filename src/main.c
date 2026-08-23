@@ -16,6 +16,7 @@
 #include "complex.h"
 
 #include <ctype.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,7 +29,7 @@
 #endif
 
 #define APP_NAME "Calculator"
-#define APP_VERSION "4.2.0"
+#define APP_VERSION "4.3.0"
 #define MAX_LINE 1024
 #define PRECISION_AUTO (-1)
 
@@ -86,14 +87,15 @@ static int console_read_key(unsigned char *key) {
 /* ------------------------------------------------------------------ */
 
 typedef struct {
-    double ans;         /* 上一次成功计算的结果（完整精度保存） */
+    CalcComplex ans;    /* 上一次成功计算的结果（复数，完整精度保存） */
     int has_ans;        /* 是否已经产生过结果 */
     int precision;      /* 显示小数位数；-1 表示自动格式 */
     CalcAngleMode mode; /* 三角函数角度制 */
 } Session;
 
 static void session_init(Session *s) {
-    s->ans = 0.0;
+    s->ans.re = 0.0;
+    s->ans.im = 0.0;
     s->has_ans = 0;
     s->precision = PRECISION_AUTO;
     s->mode = CALC_MODE_RAD;
@@ -113,7 +115,15 @@ static void print_banner(const Session *s) {
     printf("  %s v%s —— C 语言科学计算器\n", APP_NAME, APP_VERSION);
     printf("==================================================\n");
     if (s->has_ans) {
-        printf("  当前 Ans = %.15g\n", s->ans);
+        double tol = 1e-12 * (1.0 + fabs(s->ans.re) + fabs(s->ans.im));
+        char ab[96];
+        if (fabs(s->ans.im) < tol) {
+            snprintf(ab, sizeof(ab), "%.15g", s->ans.re);
+        } else {
+            snprintf(ab, sizeof(ab), "%.15g %s %.15gj", s->ans.re,
+                     (s->ans.im < 0.0 ? "-" : "+"), fabs(s->ans.im));
+        }
+        printf("  当前 Ans = %s\n", ab);
     }
     if (s->precision >= 0) {
         printf("  当前显示精度：保留 %d 位小数\n", s->precision);
@@ -181,29 +191,40 @@ static char *trim_line(char *s) {
     return s;
 }
 
-static void format_result(double value, int precision, char *out, size_t out_size) {
-    if (precision >= 0) {
-        snprintf(out, out_size, "%.*f", precision, value);
-    } else {
-        snprintf(out, out_size, "%.15g", value);
+static void format_complex(CalcComplex z, int precision, char *out, size_t out_size) {
+    double tol = 1e-12 * (1.0 + fabs(z.re) + fabs(z.im));
+    if (fabs(z.im) < tol) {
+        /* 实部即可 */
+        if (precision >= 0) snprintf(out, out_size, "%.*f", precision, z.re);
+        else                 snprintf(out, out_size, "%.15g", z.re);
+        return;
     }
+    char re[64] = {0}, im[64] = {0};
+    if (precision >= 0) {
+        snprintf(re, sizeof(re), "%.*f", precision, z.re);
+        snprintf(im, sizeof(im), "%.*f", precision, fabs(z.im));
+    } else {
+        snprintf(re, sizeof(re), "%.15g", z.re);
+        snprintf(im, sizeof(im), "%.15g", fabs(z.im));
+    }
+    snprintf(out, out_size, "%s %s %sj", re, (z.im < 0.0 ? "-" : "+"), im);
 }
 
 static int evaluate_line(Session *s, const char *line) {
-    double result = 0.0;
+    CalcComplex result = {0, 0};
     char error[512];
 
-    if (calc_evaluate_mode(line, s->mode, s->ans, s->has_ans,
-                           &result, error, sizeof(error)) != 0) {
+    if (calc_evaluate_complex(line, s->mode, s->ans, s->has_ans,
+                              &result, error, sizeof(error)) != 0) {
         fprintf(stderr, "[ERROR] %s", error);
         return -1;
     }
 
-    s->ans = result;       /* 无论显示精度如何，Ans 始终保存完整精度 */
+    s->ans = result;       /* 无论显示精度如何，Ans 始终保存完整复数精度 */
     s->has_ans = 1;
 
-    char formatted[128];
-    format_result(result, s->precision, formatted, sizeof(formatted));
+    char formatted[160];
+    format_complex(result, s->precision, formatted, sizeof(formatted));
     printf("= %s\n", formatted);
     return 0;
 }
