@@ -12,6 +12,8 @@
 
 #include "calculator.h"
 #include "units.h"
+#include "matrix.h"
+#include "complex.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -26,7 +28,7 @@
 #endif
 
 #define APP_NAME "Calculator"
-#define APP_VERSION "4.1.0"
+#define APP_VERSION "4.2.0"
 #define MAX_LINE 1024
 #define PRECISION_AUTO (-1)
 
@@ -502,7 +504,17 @@ static int run_command_line(int argc, char **argv) {
     return exit_code;
 }
 
+/* 在启动时把各算法库(矩阵/复数)注册进引擎，供表达式调用 */
+static void register_algorithm_functions(void) {
+    size_t n;
+    const calc_function *f = calc_matrix_functions(&n);
+    calc_register_functions(f, n);
+    f = calc_complex_functions(&n);
+    calc_register_functions(f, n);
+}
+
 int main(int argc, char **argv) {
+    register_algorithm_functions();
     if (argc > 1) {
         return run_command_line(argc, argv);
     }

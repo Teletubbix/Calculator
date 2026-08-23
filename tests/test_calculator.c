@@ -7,6 +7,8 @@
  */
 
 #include "calculator.h"
+#include "matrix.h"
+#include "complex.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -78,6 +80,13 @@ static void expect_value_mode(const char *expr, CalcAngleMode mode, double expec
 }
 
 int main(void) {
+    /* 注册算法库（矩阵/复数），这样 det/det/cabs/carg 才能在表达式里生效 */
+    size_t n;
+    const calc_function *f = calc_matrix_functions(&n);
+    calc_register_functions(f, n);
+    f = calc_complex_functions(&n);
+    calc_register_functions(f, n);
+
     /* 加减乘除 */
     expect_value("2+3", 5, 1e-12);
     expect_value("10-4", 6, 1e-12);
@@ -216,6 +225,18 @@ int main(void) {
     expect_value("trace3(1,2,3,4,5,6,7,8,9)", 15, 1e-12);
     expect_error("det2(1,2,3)");
     expect_error("det3(1,2,3)");
+
+    /* —— v4.2 复数（模/辐角，通信相量/阻抗）—— */
+    expect_value("cabs(3,4)", 5, 1e-12);
+    expect_value("cabs(-3,-4)", 5, 1e-12);
+    expect_value("carg(0,1)", M_PI / 2, 1e-12);
+    expect_value("carg(1,0)", 0, 1e-12);
+    expect_value("carg(-1,0)", M_PI, 1e-12);
+    expect_value("cabs(0,0)", 0, 1e-12);
+    expect_value_mode("carg(0,1)", CALC_MODE_DEG, 90, 1e-12);
+    expect_value_mode("carg(0,1)", CALC_MODE_GRAD, 100, 1e-12);
+    expect_error("cabs(3)");
+    expect_error("carg(1,2,3)");
 
     printf("\n测试结束：%s\n", failures == 0 ? "全部通过" : "存在失败用例");
     return failures == 0 ? 0 : 1;

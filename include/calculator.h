@@ -74,6 +74,30 @@ int calc_evaluate_mode(const char *expression,
                        char *error_buffer,
                        size_t error_buffer_size);
 
+/* ------------------------------------------------------------------ */
+/* 插件式函数注册表：每个算法库向引擎注册可被表达式调用的函数。          */
+/* 这样各算法(矩阵/复数/…)编译成独立的动态库( .so / .dll )，互不依赖，  */
+/* 单独修复某个算法时不影响其它部分。                                  */
+/* ------------------------------------------------------------------ */
+
+/* 一个被注册的算法函数：接收参数数组(个数为 nargs)、角度制 mode，
+ * 可把错误写入 err；返回单精度结果。 */
+typedef double (*calc_engine_fn)(const double *args, int nargs,
+                                 CalcAngleMode mode,
+                                 char *err, size_t errsz);
+
+/* 函数描述：算法库通过它把“函数名+实现”交给主程序注册。 */
+typedef struct {
+    const char *name;
+    calc_engine_fn fn;
+} calc_function;
+
+/* 向引擎注册一个可被表达式调用的函数（供主程序/算法库调用）。 */
+void calc_register_function(const char *name, calc_engine_fn fn);
+
+/* 批量注册一组函数描述（算法库返回的 calc_function 数组）。 */
+void calc_register_functions(const calc_function *fns, size_t count);
+
 #ifdef __cplusplus
 }
 #endif

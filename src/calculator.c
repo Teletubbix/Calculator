@@ -418,41 +418,38 @@ static double binary_function(Parser *p, int pos, const char *name, double a, do
     return 0.0;
 }
 
-/* 矩阵函数（最常见的是 2x2 / 3x3 方阵的行列式与迹） */
-static double matrix_function(Parser *p, int pos, const char *name,
-                              const double *a, int n) {
-    if (ident_equals(name, "det2")) {
-        if (n != 4) {
-            parser_set_error(p, pos, "det2 需要 4 个参数：det2(a,b,c,d) 计算 |a b;c d|");
-            return 0.0;
-        }
-        return a[0] * a[3] - a[1] * a[2];
+/* ------------------------------------------------------------------ */
+/* 插件式函数注册表                                                     */
+/* ------------------------------------------------------------------ */
+
+#define MAX_REGISTERED 64
+static struct { const char *name; calc_engine_fn fn; } g_fns[MAX_REGISTERED];
+static int g_fn_count = 0;
+
+void calc_register_function(const char *name, calc_engine_fn fn) {
+    if (name == NULL || fn == NULL) return;
+    for (int i = 0; i < g_fn_count; i++) {
+        if (strcmp(g_fns[i].name, name) == 0) { g_fns[i].fn = fn; return; } /* 幂等：覆盖同名 */
     }
-    if (ident_equals(name, "trace2")) {
-        if (n != 4) {
-            parser_set_error(p, pos, "trace2 需要 4 个参数：trace2(a,b,c,d) = a+d");
-            return 0.0;
-        }
-        return a[0] + a[3];
+    if (g_fn_count < MAX_REGISTERED) {
+        g_fns[g_fn_count].name = name;
+        g_fns[g_fn_count].fn = fn;
+        g_fn_count++;
     }
-    if (ident_equals(name, "det3")) {
-        if (n != 9) {
-            parser_set_error(p, pos, "det3 需要 9 个参数：det3(a,b,c,d,e,f,g,h,i) 计算 3x3 行列式");
-            return 0.0;
-        }
-        return a[0] * (a[4] * a[8] - a[5] * a[7])
-             - a[1] * (a[3] * a[8] - a[5] * a[6])
-             + a[2] * (a[3] * a[7] - a[4] * a[6]);
+}
+
+void calc_register_functions(const calc_function *fns, size_t count) {
+    if (fns == NULL) return;
+    for (size_t i = 0; i < count; i++) {
+        calc_register_function(fns[i].name, fns[i].fn);
     }
-    if (ident_equals(name, "trace3")) {
-        if (n != 9) {
-            parser_set_error(p, pos, "trace3 需要 9 个参数：trace3(a,b,c,d,e,f,g,h,i) = a+e+i");
-            return 0.0;
-        }
-        return a[0] + a[4] + a[8];
+}
+
+static calc_engine_fn registry_lookup(const char *name) {
+    for (int i = 0; i < g_fn_count; i++) {
+        if (ident_equals(g_fns[i].name, name)) return g_fns[i].fn;
     }
-    parser_set_error(p, pos, "未知矩阵函数 '%s'（可用：det2、det3、trace2、trace3）", name);
-    return 0.0;
+    return NULL;
 }
 
 /* 阶乘只对 0~170 的非负整数有定义（171! 已超出 double 范围） */
@@ -629,6 +626,18 @@ static double parse_primary(Parser *p) {
             }
             lexer_next(&p->lx);
 
+            /* 先在注册表中查找（算法库注册的矩阵/复数等函数） */
+            calc_engine_fn reg = registry_lookup(name);
+            if (reg != NULL) {
+                char rerr[256] = {0};
+                double r = reg(args, nargs, p->mode, rerr, sizeof(rerr));
+                if (rerr[0] != '\0') {
+                    parser_set_error(p, ident_pos, "%s", rerr);
+                    return 0.0;
+                }
+                return r;
+            }
+
             if (nargs == 1) {
                 return unary_function(p, ident_pos, name, args[0]);
             }
@@ -637,9 +646,6 @@ static double parse_primary(Parser *p) {
                     return binary_op(p, ident_pos, '^', args[0], args[1]);
                 }
                 return binary_function(p, ident_pos, name, args[0], args[1]);
-            }
-            if (nargs == 4 || nargs == 9) {
-                return matrix_function(p, ident_pos, name, args, nargs);
             }
             parser_set_error(p, p->lx.token_pos, "函数 '%s' 参数个数不正确", name);
             return 0.0;

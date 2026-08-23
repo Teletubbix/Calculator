@@ -14,12 +14,14 @@
 
 #include <gtk/gtk.h>
 #include "calculator.h"
+#include "matrix.h"
+#include "complex.h"
 
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 
-#define GUI_VERSION "4.1.0"
+#define GUI_VERSION "4.2.0"
 
 /* —— 主题（东京之夜 / Tokyonight 风格）—— */
 static const char *CSS =
@@ -266,6 +268,12 @@ static void activate(GtkApplication *app, gpointer user_data) {
 }
 
 int main(int argc, char **argv) {
+    size_t n;
+    const calc_function *f = calc_matrix_functions(&n);
+    calc_register_functions(f, n);
+    f = calc_complex_functions(&n);
+    calc_register_functions(f, n);
+
     GtkApplication *app = gtk_application_new("org.teletubbix.calculator", G_APPLICATION_DEFAULT_FLAGS);
     int status = g_application_run(G_APPLICATION(app), argc, argv);
     g_object_unref(app);

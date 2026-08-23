@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Calculator VERSION 3.1.0 LANGUAGES C)
+project(Calculator VERSION 4.2.0 LANGUAGES C)
 
 # —— 编译标准 ——
 set(CMAKE_C_STANDARD 11)
@@ -19,19 +19,31 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# 表达式求值核心库 + 单位换算（静态库，方便测试和复用）
-add_library(calc_core STATIC
-    src/calculator.c
-    src/units.c
-)
+# —— 各算法独立共享库（分布式架构，互不依赖）——
+add_library(calc_core SHARED src/calculator.c)
 target_include_directories(calc_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 if(NOT WIN32)
     target_link_libraries(calc_core PUBLIC m)
 endif()
 
+add_library(calc_units SHARED src/units.c)
+target_include_directories(calc_units PUBLIC ${CMAKE_SOURCE_DIR}/include)
+if(NOT WIN32)
+    target_link_libraries(calc_units PUBLIC m)
+endif()
+
+add_library(calc_matrix SHARED src/matrix.c)
+target_include_directories(calc_matrix PUBLIC ${CMAKE_SOURCE_DIR}/include)
+
+add_library(calc_complex SHARED src/complex.c)
+target_include_directories(calc_complex PUBLIC ${CMAKE_SOURCE_DIR}/include)
+if(NOT WIN32)
+    target_link_libraries(calc_complex PUBLIC m)
+endif()
+
 # 主程序
 add_executable(Calculator src/main.c)
-target_link_libraries(Calculator PRIVATE calc_core)
+target_link_libraries(Calculator PRIVATE calc_core calc_units calc_matrix calc_complex)
 
 # —— GTK4 图形界面（可选：找到 gtk4 时构建）——
 find_package(PkgConfig QUIET)
@@ -40,7 +52,7 @@ if(PkgConfig_FOUND)
 endif()
 if(GTK4_FOUND)
     add_executable(Calculator-gui gui/gui_gtk4.c)
-    target_link_libraries(Calculator-gui PRIVATE calc_core ${GTK4_LIBRARIES})
+    target_link_libraries(Calculator-gui PRIVATE calc_core calc_matrix calc_complex ${GTK4_LIBRARIES})
     target_include_directories(Calculator-gui PRIVATE ${GTK4_INCLUDE_DIRS})
     message(STATUS "找到 GTK4，构建 GUI 目标 Calculator-gui")
 else()
@@ -52,15 +64,16 @@ option(BUILD_TESTING "Build and register unit tests" ON)
 if(BUILD_TESTING)
     enable_testing()
     add_executable(calculator_tests tests/test_calculator.c)
-    target_link_libraries(calculator_tests PRIVATE calc_core)
+    target_link_libraries(calculator_tests PRIVATE calc_core calc_matrix calc_complex)
     add_test(NAME calculator_tests COMMAND calculator_tests)
 endif()
 
 # —— 安装规则 ——
 include(GNUInstallDirs)
-install(TARGETS calc_core
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-# GUI 目标(Calculator)只在对应平台分支上存在；不存在时跳过安装，避免配置失败
+foreach(t calc_core calc_units calc_matrix calc_complex)
+    install(TARGETS ${t}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endforeach()
 if(TARGET Calculator)
     install(TARGETS Calculator
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
