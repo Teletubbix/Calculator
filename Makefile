@@ -53,8 +53,8 @@ $(TARGET): $(SRC_MAIN) $(ALG_LIBS) $(HDR) | $(BIN_DIR)
 		-Wl,-rpath,'$$ORIGIN' $(LDLIBS)
 
 # 测试直接编译源码（含矩阵/复数），便于单测
-$(TEST): $(SRC_TEST) src/calculator.c src/matrix.c src/complex.c $(HDR) | $(BIN_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(SRC_TEST) src/calculator.c src/matrix.c src/complex.c -o $@ $(LDLIBS)
+$(TEST): $(SRC_TEST) src/calculator.c src/matrix.c src/complex.c src/units.c $(HDR) | $(BIN_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(SRC_TEST) src/calculator.c src/matrix.c src/complex.c src/units.c -o $@ $(LDLIBS)
 
 run: $(TARGET)
 	./$(TARGET)

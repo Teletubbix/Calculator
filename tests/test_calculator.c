@@ -9,6 +9,7 @@
 #include "calculator.h"
 #include "matrix.h"
 #include "complex.h"
+#include "units.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -23,6 +24,20 @@
 #endif
 
 static int failures = 0;
+
+static int near(double actual, double expected, double tolerance);
+
+/* 单位换算测试 */
+static void expect_unit(double value, const char *from, const char *to, double expected, double tol) {
+    double out = 0.0; char err[256] = {0};
+    if (unit_convert(value, from, to, &out, err, sizeof(err)) != 0 || !near(out, expected, tol)) {
+        printf("FAIL  convert %.9g %s -> %s  期望 %g  实际 %g  错误 %s\n",
+               value, from, to, expected, out, err);
+        failures++;
+    } else {
+        printf("PASS  convert %.9g %s -> %s = %g\n", value, from, to, out);
+    }
+}
 
 static int near(double actual, double expected, double tolerance) {
     return fabs(actual - expected) <= tolerance;
@@ -264,6 +279,33 @@ int main(void) {
     expect_complex("2^0.5", sqrt(2), 0, 1e-9);
     expect_complex("(1+2j)+3", 4, 2, 1e-12);
     expect_complex("1+2j+3i", 1, 5, 1e-12);   /* 1 + 2i + 3i = 1 + 5i */
+
+    /* —— v4.3 复数边界/深入 —— */
+    expect_complex("j", 0, 1, 1e-12);
+    expect_complex("i", 0, 1, 1e-12);
+    expect_complex("3j*2j", -6, 0, 1e-12);          /* 3i·2i = 6i² = -6 */
+    expect_complex("1/j", 0, -1, 1e-12);            /* 1/i = -i */
+    expect_complex("abs(3+4j)", 5, 0, 1e-12);       /* 模 */
+    expect_complex("0^0", 1, 0, 1e-12);             /* 约定 0^0 = 1 */
+    expect_complex("sin(1j)", 0, sinh(1), 1e-6);    /* sin(i) = i·sinh(1) */
+    expect_complex("(1+2j)^2", -3, 4, 1e-12);       /* (1+2i)² = 1+4i-4 = -3+4i */
+    expect_complex("exp(2j)", cos(2), sin(2), 1e-9);/* e^{i·2} */
+    expect_complex("sqrt(3+4j)", 2, 1, 1e-9);       /* sqrt(3+4i) = 2+i */
+    expect_error("(1+1j)/0");
+    expect_error("floor(1+2j)");
+
+    /* —— 单位换算 —— */
+    expect_unit(1, "km", "m", 1000, 1e-9);
+    expect_unit(1, "GB", "MB", 1000, 1e-9);
+    expect_unit(0, "degC", "degF", 32, 1e-9);
+    expect_unit(100, "degC", "degF", 212, 1e-9);
+    expect_unit(0, "dBm", "mW", 1, 1e-9);
+    expect_unit(10, "dBm", "mW", 10, 1e-9);
+    expect_unit(3, "GHz", "MHz", 3000, 1e-9);
+    expect_unit(1, "kW", "W", 1000, 1e-9);
+    expect_unit(2, "h", "min", 120, 1e-9);
+    expect_unit(1, "lb", "kg", 0.45359237, 1e-9);
+    expect_unit(30, "degC", "degC", 30, 1e-12);
 
     printf("\n测试结束：%s\n", failures == 0 ? "全部通过" : "存在失败用例");
     return failures == 0 ? 0 : 1;
