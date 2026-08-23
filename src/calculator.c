@@ -418,6 +418,43 @@ static double binary_function(Parser *p, int pos, const char *name, double a, do
     return 0.0;
 }
 
+/* 矩阵函数（最常见的是 2x2 / 3x3 方阵的行列式与迹） */
+static double matrix_function(Parser *p, int pos, const char *name,
+                              const double *a, int n) {
+    if (ident_equals(name, "det2")) {
+        if (n != 4) {
+            parser_set_error(p, pos, "det2 需要 4 个参数：det2(a,b,c,d) 计算 |a b;c d|");
+            return 0.0;
+        }
+        return a[0] * a[3] - a[1] * a[2];
+    }
+    if (ident_equals(name, "trace2")) {
+        if (n != 4) {
+            parser_set_error(p, pos, "trace2 需要 4 个参数：trace2(a,b,c,d) = a+d");
+            return 0.0;
+        }
+        return a[0] + a[3];
+    }
+    if (ident_equals(name, "det3")) {
+        if (n != 9) {
+            parser_set_error(p, pos, "det3 需要 9 个参数：det3(a,b,c,d,e,f,g,h,i) 计算 3x3 行列式");
+            return 0.0;
+        }
+        return a[0] * (a[4] * a[8] - a[5] * a[7])
+             - a[1] * (a[3] * a[8] - a[5] * a[6])
+             + a[2] * (a[3] * a[7] - a[4] * a[6]);
+    }
+    if (ident_equals(name, "trace3")) {
+        if (n != 9) {
+            parser_set_error(p, pos, "trace3 需要 9 个参数：trace3(a,b,c,d,e,f,g,h,i) = a+e+i");
+            return 0.0;
+        }
+        return a[0] + a[4] + a[8];
+    }
+    parser_set_error(p, pos, "未知矩阵函数 '%s'（可用：det2、det3、trace2、trace3）", name);
+    return 0.0;
+}
+
 /* 阶乘只对 0~170 的非负整数有定义（171! 已超出 double 范围） */
 static double factorial_op(Parser *p, int pos, double x) {
     if (x < 0.0 || floor(x) != x) {
@@ -567,13 +604,13 @@ static double parse_primary(Parser *p) {
         if (p->lx.type == TOK_LPAREN) {
             lexer_next(&p->lx); /* 跳过 '(' */
 
-            /* 解析参数列表（逗号分隔）。pow/atan2/mod/gcd/lcm/comb/perm/logn 是二元函数 */
-            double args[3];
+            /* 解析参数列表（逗号分隔）。二元/矩阵函数按参数个数分派 */
+            double args[9];
             int nargs = 0;
             while (1) {
-                if (nargs >= 3) {
+                if (nargs >= 9) {
                     parser_set_error(p, p->lx.token_pos,
-                                     "函数 '%s' 参数过多（最多 2 个）", name);
+                                     "函数 '%s' 参数过多（最多 9 个）", name);
                     return 0.0;
                 }
                 args[nargs++] = parse_expression(p);
@@ -601,7 +638,10 @@ static double parse_primary(Parser *p) {
                 }
                 return binary_function(p, ident_pos, name, args[0], args[1]);
             }
-            parser_set_error(p, p->lx.token_pos, "函数 '%s' 需要 1 或 2 个参数", name);
+            if (nargs == 4 || nargs == 9) {
+                return matrix_function(p, ident_pos, name, args, nargs);
+            }
+            parser_set_error(p, p->lx.token_pos, "函数 '%s' 参数个数不正确", name);
             return 0.0;
         }
 

@@ -11,6 +11,7 @@
  */
 
 #include "calculator.h"
+#include "units.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -25,7 +26,7 @@
 #endif
 
 #define APP_NAME "Calculator"
-#define APP_VERSION "4.0.0"
+#define APP_VERSION "4.1.0"
 #define MAX_LINE 1024
 #define PRECISION_AUTO (-1)
 
@@ -138,6 +139,8 @@ static void print_help(void) {
         " 取整：floor(x) ceil(x) round(x) trunc(x)  其他：sign(x) atan2(y,x)\n"
         " 二元：mod(a,b) gcd(a,b) lcm(a,b) comb(n,k) perm(n,k) logn(x,base)\n"
         "   说明：ln 是自然对数，log 是以 10 为底的对数，logn(x,b) 是以 b 为底 x 的对数。\n"
+        " 矩阵（方阵为主）：det2(a,b,c,d) trace2(a,b,c,d) 为 2x2，\n"
+        "       det3(9个参数) trace3(9个参数) 为 3x3（按行优先排列元素）。\n"
         "\n"
         " 常量：pi 或 π（圆周率）、e（自然常数）、tau(2π)、phi(黄金分割)、Ans（上次结果）。\n"
         "\n"
@@ -145,6 +148,7 @@ static void print_help(void) {
         "   precision N      设置显示精度，例如 precision 2 表示保留 2 位小数\n"
         "   precision auto   恢复自动格式（%%）\n"
         "   mode deg/rad/grad 切换角度制（默认弧度制）\n"
+        "   convert V from to 单位换算，例如 convert 1 km m、convert 0 dBm mW\n"
         "   help             显示本帮助\n"
         "   quit / exit / q  退出（也可直接按 Esc）\n"
         "\n"
@@ -278,6 +282,36 @@ static int handle_mode_command(Session *s, const char *line) {
     return 1;
 }
 
+/*
+ * 处理 convert 命令：convert <数值> <源单位> <目标单位>。
+ * 返回：1 表示已处理，0 表示不是 convert 命令。
+ */
+static int handle_convert_command(Session *s, const char *line) {
+    (void)s;
+    const char *p = line;
+    if (strncmp(p, "convert", 7) != 0 ||
+        (p[7] != '\0' && !isspace((unsigned char)p[7]))) {
+        return 0;
+    }
+    p += 7;
+    while (isspace((unsigned char)*p)) p++;
+
+    char from[32], to[32];
+    double value = 0.0;
+    if (sscanf(p, "%lf %31s %31s", &value, from, to) != 3) {
+        printf("用法：convert <数值> <源单位> <目标单位>，例如 convert 1 km m\n");
+        return 1;
+    }
+    double out = 0.0;
+    char err[256] = {0};
+    if (unit_convert(value, from, to, &out, err, sizeof(err)) != 0) {
+        printf("[ERROR] %s\n", err);
+    } else {
+        printf("= %g %s\n", out, to);
+    }
+    return 1;
+}
+
 /* ------------------------------------------------------------------ */
 /* 交互模式                                                             */
 /* ------------------------------------------------------------------ */
@@ -390,6 +424,9 @@ static int run_repl(void) {
             continue;
         }
         if (handle_mode_command(&session, input)) {
+            continue;
+        }
+        if (handle_convert_command(&session, input)) {
             continue;
         }
 

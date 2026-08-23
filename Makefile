@@ -16,9 +16,10 @@ TARGET  := $(BIN_DIR)/Calculator
 TEST    := $(BIN_DIR)/calculator_tests
 
 SRC_CORE := src/calculator.c
+SRC_UNITS := src/units.c
 SRC_MAIN := src/main.c
 SRC_TEST := tests/test_calculator.c
-HDR      := include/calculator.h
+HDR      := include/calculator.h include/units.h
 
 .PHONY: all run test clean
 
@@ -27,8 +28,8 @@ all: $(TARGET)
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 
-$(TARGET): $(SRC_MAIN) $(SRC_CORE) $(HDR) | $(BIN_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(SRC_MAIN) $(SRC_CORE) -o $@ $(LDLIBS)
+$(TARGET): $(SRC_MAIN) $(SRC_CORE) $(SRC_UNITS) $(HDR) | $(BIN_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(SRC_MAIN) $(SRC_CORE) $(SRC_UNITS) -o $@ $(LDLIBS)
 
 $(TEST): $(SRC_TEST) $(SRC_CORE) $(HDR) | $(BIN_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(SRC_TEST) $(SRC_CORE) -o $@ $(LDLIBS)

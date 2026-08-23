@@ -6,7 +6,7 @@
 - `linux` 分支：GTK3 图形界面（按钮 + 键盘输入）
 - `windows` 分支：Win32 图形界面（按钮 + 键盘输入）
 
-## ✨ v4.0.0 功能
+## ✨ v4.1.0 功能
 
 | 类别 | 支持内容 |
 |------|----------|
@@ -15,15 +15,16 @@
 | 开根 | `sqrt(x)` |
 | 对数 | `ln(x)` 自然对数、`log(x)` 以 10 为底、`log2(x)` 以 2 为底、`logn(x, base)` 任意底 |
 | 阶乘 | `n!`（后缀写法，如 `5!`） |
-| 三角函数（弧度制） | `sin(x)`、`cos(x)`、`tan(x)` |
-| 三角函数（角度制） | `sind(x)`、`cosd(x)`、`tand(x)` |
+| 三角函数 | `sin(x)`、`cos(x)`、`tan(x)`（受角度模式影响）；`sind(x)`、`cosd(x)`、`tand(x)`（角度制）|
 | 反三角 | `asin(x)`、`acos(x)`、`atan(x)`（以及角度版 `asind/acosd/atand`）|
 | 双曲 | `sinh(x)`、`cosh(x)`、`tanh(x)` |
 | 取整 | `floor(x)`、`ceil(x)`、`round(x)`、`trunc(x)` |
 | 其他函数 | `exp(x)`、`abs(x)`、`sign(x)`、`atan2(y,x)`、`mod(a,b)`、`gcd(a,b)`、`lcm(a,b)`、`comb(n,k)`、`perm(n,k)` |
+| **矩阵（方阵）** | `det2(a,b,c,d)`、`trace2(a,b,c,d)`（2x2）；`det3(9参)`、`trace3(9参)`（3x3）——行列式/迹，考试常用 |
+| **单位换算** | `convert <值> <源单位> <目标单位>`：长度/质量/温度/数据/时间/速度/功率/能量/频率/压强/dB |
 | 角度模式 | `mode deg`（角度）、`mode rad`（弧度）、`mode grad`（百分度），影响 `sin/cos/tan` |
 | 常量 | `pi`（或 `π`）、`e`、`tau`、`phi`、`Ans` |
-| 图形界面 | GTK4 GUI（数字/运算符/科学函数按钮、Ans、DEG/RAD 切换、键盘输入）|
+| **图形界面** | GTK4 GUI，**现代深色主题**（东京之夜风），按钮按功能分组、清晰布局，Ans/DEG/RAD 切换、键盘输入 |
 | 连续运行 | 按 `Enter` 计算，按 `Esc` 退出，不退出程序 |
 | 记忆功能 | `Ans` 保存上一次计算结果，可继续参与运算 |
 | 显示精度 | `precision N` 保留 N 位小数；`precision auto` 恢复自动格式 |

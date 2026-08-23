@@ -23,7 +23,7 @@ export PKG_CONFIG_PATH=/mingw64/lib/pkgconfig
 export PKG_CONFIG_LIBDIR=/mingw64/lib/pkgconfig
 cd '$MSYS_PROJECT'
 echo ':: 交叉编译 CLI -> bin/Calculator.exe'
-x86_64-w64-mingw32-gcc -Iinclude src/main.c src/calculator.c -o bin/Calculator.exe
+x86_64-w64-mingw32-gcc -Iinclude src/main.c src/calculator.c src/units.c -o bin/Calculator.exe
 echo ':: 交叉编译 GTK4 GUI -> gui/Calculator-gui.exe'
 x86_64-w64-mingw32-gcc -Iinclude gui/gui_gtk4.c src/calculator.c \$(pkg-config --cflags --libs gtk4) -o gui/Calculator-gui.exe
 echo ':: 完成。产物：'

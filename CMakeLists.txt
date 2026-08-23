@@ -19,9 +19,10 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# 表达式求值核心库（静态库，方便测试和复用）
+# 表达式求值核心库 + 单位换算（静态库，方便测试和复用）
 add_library(calc_core STATIC
     src/calculator.c
+    src/units.c
 )
 target_include_directories(calc_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 if(NOT WIN32)

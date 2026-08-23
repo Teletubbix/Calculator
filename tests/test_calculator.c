@@ -208,6 +208,15 @@ int main(void) {
     expect_error("logn(8,1)");
     expect_error("mod(5,0)");
 
+    /* —— v4.1 矩阵函数（方阵行列式/迹）—— */
+    expect_value("det2(1,2,3,4)", -2, 1e-12);
+    expect_value("trace2(1,2,3,4)", 5, 1e-12);
+    expect_value("det3(1,2,3,4,5,6,7,8,9)", 0, 1e-12);
+    expect_value("det3(2,0,0,0,3,0,0,0,4)", 24, 1e-12);
+    expect_value("trace3(1,2,3,4,5,6,7,8,9)", 15, 1e-12);
+    expect_error("det2(1,2,3)");
+    expect_error("det3(1,2,3)");
+
     printf("\n测试结束：%s\n", failures == 0 ? "全部通过" : "存在失败用例");
     return failures == 0 ? 0 : 1;
 }
