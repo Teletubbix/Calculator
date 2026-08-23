@@ -32,6 +32,8 @@ echo ':: 编译 CLI -> bin/Calculator.exe'
 x86_64-w64-mingw32-gcc -Iinclude src/main.c -o bin/Calculator.exe -Lbin -lcalc_core -lcalc_units -lcalc_matrix -lcalc_complex -lcalc_db
 echo ':: 编译 GTK4 GUI -> gui/Calculator-gui.exe'
 x86_64-w64-mingw32-gcc -Iinclude gui/gui_gtk4.c -o gui/Calculator-gui.exe -Lbin -lcalc_core -lcalc_matrix -lcalc_complex -lcalc_db \$(pkg-config --cflags --libs gtk4)
+echo ':: 剥离符号(提高反编译门槛)'
+for f in bin/*.dll bin/Calculator.exe gui/Calculator-gui.exe; do strip "\$f" 2>/dev/null || true; done
 echo ':: 完成。产物：'
 ls -la bin/*.dll bin/Calculator.exe gui/Calculator-gui.exe
 "

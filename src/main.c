@@ -35,7 +35,7 @@
 #endif
 
 #define APP_NAME "Calculator"
-#define APP_VERSION "4.4.0"
+#define APP_VERSION "4.5.0"
 #define MAX_LINE 1024
 #define PRECISION_AUTO (-1)
 
@@ -119,6 +119,7 @@ static const char *mode_name(CalcAngleMode mode) {
 static void print_banner(const Session *s) {
     printf("==================================================\n");
     printf("  %s v%s —— C 语言科学计算器\n", APP_NAME, APP_VERSION);
+    printf("  版权所有 (C) 2026 Teletubbix · 依 GNU AGPL-3.0 发布 (见 LICENSE)\n");
     printf("==================================================\n");
     if (s->has_ans) {
         double tol = 1e-12 * (1.0 + fabs(s->ans.re) + fabs(s->ans.im));
