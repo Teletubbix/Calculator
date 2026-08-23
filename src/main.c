@@ -35,7 +35,7 @@
 #endif
 
 #define APP_NAME "Calculator"
-#define APP_VERSION "4.5.0"
+#define APP_VERSION "4.6.0"
 #define MAX_LINE 1024
 #define PRECISION_AUTO (-1)
 
@@ -97,6 +97,10 @@ typedef struct {
     int has_ans;        /* 是否已经产生过结果 */
     int precision;      /* 显示小数位数；-1 表示自动格式 */
     CalcAngleMode mode; /* 三角函数角度制 */
+    char hist[100][MAX_LINE];  /* 历史记录（过去的表达式） */
+    CalcComplex hist_res[100]; /* 对应的结果 */
+    int hist_count;
+    int hist_pos;              /* 上/下箭头导航位置；-1 表示未在导航 */
 } Session;
 
 static void session_init(Session *s) {
@@ -105,6 +109,8 @@ static void session_init(Session *s) {
     s->has_ans = 0;
     s->precision = PRECISION_AUTO;
     s->mode = CALC_MODE_RAD;
+    s->hist_count = 0;
+    s->hist_pos = -1;
 }
 
 static const char *mode_name(CalcAngleMode mode) {
@@ -161,6 +167,7 @@ static void print_help(void) {
         " 矩阵（方阵为主）：det2(a,b,c,d) trace2(a,b,c,d) 为 2x2，\n"
         "       det3(9个参数) trace3(9个参数) 为 3x3（按行优先排列元素）。\n"
         "\n"
+        " 极坐标：r∠θ 或 r@θ（θ 按当前角度制）——相量记法，如 3∠30。\n"
         " 常量：pi 或 π（圆周率）、e（自然常数）、tau(2π)、phi(黄金分割)、Ans（上次结果）。\n"
         "\n"
         " 命令（输入后按 Enter）：\n"
@@ -169,6 +176,8 @@ static void print_help(void) {
         "   mode deg/rad/grad 切换角度制（默认弧度制）\n"
         "   convert V from to 单位换算，例如 convert 1 km m、convert 0 dBm mW\n"
         "   help             显示本帮助\n"
+        "   history           查看计算历史（上/下箭头亦可翻看）\n"
+        "   clear             清空历史\n"
         "   quit / exit / q  退出（也可直接按 Esc）\n"
         "\n"
         " 示例：\n"
@@ -229,6 +238,15 @@ static int evaluate_line(Session *s, const char *line) {
 
     s->ans = result;       /* 无论显示精度如何，Ans 始终保存完整复数精度 */
     s->has_ans = 1;
+
+    /* 记录到历史 */
+    if (s->hist_count < 100) {
+        strncpy(s->hist[s->hist_count], line, MAX_LINE - 1);
+        s->hist[s->hist_count][MAX_LINE - 1] = '\0';
+        s->hist_res[s->hist_count] = result;
+        s->hist_count++;
+        s->hist_pos = -1;
+    }
 
     char formatted[160];
     format_complex(result, s->precision, formatted, sizeof(formatted));
@@ -366,9 +384,26 @@ static int read_line_raw(char *buf, size_t size) {
             return n;
         }
 
-        /* Esc：立即退出连续计算模式 */
+        /* Esc / 方向键：ESC [ A(上) / B(下)；Windows 是 224 + 'H'/'P' */
         if (key == 27) {
-            return -1;
+            unsigned char nxt = 0;
+            if (console_read_key(&nxt) == 1 && nxt == '[') {
+                unsigned char q = 0;
+                if (console_read_key(&q) == 1) {
+                    if (q == 'A') return -2;   /* 上 */
+                    if (q == 'B') return -3;   /* 下 */
+                }
+                return -1;   /* 其它序列 → 退出 */
+            }
+            return -1;       /* 单独 Esc → 退出 */
+        }
+        if (key == 224) {    /* Windows 方向键前缀 */
+            unsigned char q = 0;
+            if (console_read_key(&q) == 1) {
+                if (q == 'H') return -2;   /* 上 */
+                if (q == 'P') return -3;   /* 下 */
+            }
+            continue;
         }
 
         /* Enter */
@@ -420,12 +455,40 @@ static int run_repl(void) {
     print_help();
     int raw_mode = console_enter_raw();
 
+    print_prompt();
     while (1) {
-        print_prompt();
-
         char line[MAX_LINE];
         int n = (raw_mode == 1) ? read_line_raw(line, sizeof(line))
                                 : read_line_buffered(line, sizeof(line));
+
+        /* 上箭头：历史上一条 */
+        if (n == -2) {
+            if (raw_mode == 1 && session.hist_count > 0) {
+                if (session.hist_pos < 0) session.hist_pos = session.hist_count - 1;
+                else if (session.hist_pos > 0) session.hist_pos--;
+                strncpy(line, session.hist[session.hist_pos], MAX_LINE - 1);
+                line[MAX_LINE - 1] = '\0';
+                printf("\r\033[K> %s", line);
+                fflush(stdout);
+            }
+            continue;
+        }
+        /* 下箭头：返回下一条 */
+        if (n == -3) {
+            if (raw_mode == 1 && session.hist_pos >= 0) {
+                session.hist_pos--;
+                if (session.hist_pos < 0) {
+                    line[0] = '\0';
+                    printf("\r\033[K> ");
+                } else {
+                    strncpy(line, session.hist[session.hist_pos], MAX_LINE - 1);
+                    line[MAX_LINE - 1] = '\0';
+                    printf("\r\033[K> %s", line);
+                }
+                fflush(stdout);
+            }
+            continue;
+        }
         if (n < 0) {
             printf("\n再见！\n");
             break;
@@ -437,6 +500,7 @@ static int run_repl(void) {
 
         char *input = trim_line(line);
         if (*input == '\0') {
+            print_prompt();
             continue;
         }
 
@@ -448,19 +512,44 @@ static int run_repl(void) {
         if (is_command(input, "help") || is_command(input, "h") ||
             is_command(input, "?")) {
             print_help();
+            print_prompt();
+            continue;
+        }
+        if (is_command(input, "history") || is_command(input, "hist")) {
+            if (session.hist_count == 0) {
+                printf("  (暂无历史)\n");
+            } else {
+                for (int i = 0; i < session.hist_count; i++) {
+                    char r[96];
+                    format_complex(session.hist_res[i], session.precision, r, sizeof(r));
+                    printf("  %2d. %s = %s\n", i + 1, session.hist[i], r);
+                }
+            }
+            print_prompt();
+            continue;
+        }
+        if (is_command(input, "clear") || is_command(input, "cls")) {
+            session.hist_count = 0;
+            session.hist_pos = -1;
+            printf("历史已清空。\n");
+            print_prompt();
             continue;
         }
         if (handle_precision_command(&session, input)) {
+            print_prompt();
             continue;
         }
         if (handle_mode_command(&session, input)) {
+            print_prompt();
             continue;
         }
         if (handle_convert_command(&session, input)) {
+            print_prompt();
             continue;
         }
 
         evaluate_line(&session, input);
+        print_prompt();
     }
 
     console_restore();

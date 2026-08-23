@@ -114,6 +114,20 @@ static void expect_complex(const char *expr, double re, double im, double tolera
     }
 }
 
+static void expect_complex_mode(const char *expr, CalcAngleMode mode, double re, double im, double tolerance) {
+    CalcComplex result = {0, 0};
+    char error[512] = {0};
+    int rc = calc_evaluate_complex(expr, mode, (CalcComplex){0,0}, 0,
+                                   &result, error, sizeof(error));
+    if (rc != 0 || !near(result.re, re, tolerance) || !near(result.im, im, tolerance)) {
+        printf("FAIL  %-24s(模式=%d) 期望=%g%+gi  实际=%g%+gi  错误=%s\n",
+               expr, (int)mode, re, im, result.re, result.im, rc != 0 ? error : "数值不符");
+        failures++;
+    } else {
+        printf("PASS  %-24s(模式=%d) = %g%+gi\n", expr, (int)mode, result.re, result.im);
+    }
+}
+
 int main(void) {
     /* 注册算法库（矩阵/复数），这样 det/det/cabs/carg 才能在表达式里生效 */
     size_t n;
@@ -301,6 +315,14 @@ int main(void) {
     expect_complex("sqrt(3+4j)", 2, 1, 1e-9);       /* sqrt(3+4i) = 2+i */
     expect_error("(1+1j)/0");
     expect_error("floor(1+2j)");
+
+    /* —— v4.6 极坐标 / ∠ 相量 —— */
+    expect_complex("3∠(pi/6)", 3*cos(M_PI/6), 3*sin(M_PI/6), 1e-9);
+    expect_complex("3@(pi/6)", 3*cos(M_PI/6), 3*sin(M_PI/6), 1e-9);
+    expect_complex_mode("3∠30", CALC_MODE_DEG, 3*cos(30*M_PI/180), 3*sin(30*M_PI/180), 1e-9);
+    expect_complex_mode("1∠90", CALC_MODE_DEG, 0, 1, 1e-9);
+    expect_complex("5∠(pi/2)*2", 0, 10, 1e-9);
+    expect_complex("abs(3∠(pi/3))", 3, 0, 1e-9);
 
     /* —— 单位换算 —— */
     expect_unit(1, "km", "m", 1000, 1e-9);

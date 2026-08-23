@@ -61,6 +61,7 @@ typedef enum {
     TOK_LPAREN,  /* ( */
     TOK_RPAREN,  /* ) */
     TOK_COMMA,   /* , */
+    TOK_ANGLE,   /* ∠ 或 @：极坐标相量 r∠θ */
     TOK_ERROR
 } TokenType;
 
@@ -133,6 +134,14 @@ static void lexer_next(Lexer *lx) {
         return;
     }
 
+    /* ∠（U+2220, UTF-8: E2 88 A0）—— 极坐标相量运算符 */
+    if (c == 0xE2 && (unsigned char)src[lx->pos + 1] == 0x88 &&
+        (unsigned char)src[lx->pos + 2] == 0xA0) {
+        lx->pos += 3;
+        lx->type = TOK_ANGLE;
+        return;
+    }
+
     /* 单字符运算符 */
     lx->pos++;
     switch (c) {
@@ -145,6 +154,7 @@ static void lexer_next(Lexer *lx) {
         case '(': lx->type = TOK_LPAREN; return;
         case ')': lx->type = TOK_RPAREN; return;
         case ',': lx->type = TOK_COMMA;  return;
+        case '@': lx->type = TOK_ANGLE;  return;  /* ASCII 别名：r@θ */
         default:  lx->type = TOK_ERROR;  return;
     }
 }
@@ -189,12 +199,15 @@ static int ident_equals(const char *ident, const char *name) {
 static CalcComplex parse_expression(Parser *p);
 static CalcComplex parse_term(Parser *p);
 static CalcComplex parse_unary(Parser *p);
+static CalcComplex parse_angle(Parser *p);
 static CalcComplex parse_power(Parser *p);
 static CalcComplex parse_postfix(Parser *p);
 static CalcComplex parse_primary(Parser *p);
 
 /* 便捷构造：实数 */
 static CalcComplex zc(double re) { CalcComplex z = { re, 0.0 }; return z; }
+
+static double angle_to_rad(Parser *p, double x);   /* 前向声明 */
 
 /* 二元运算（复数），并做定义域检查 */
 static CalcComplex binary_op(Parser *p, int pos, char op, CalcComplex a, CalcComplex b) {
@@ -216,6 +229,13 @@ static CalcComplex binary_op(Parser *p, int pos, char op, CalcComplex a, CalcCom
                 parser_set_error(p, pos, "乘方结果无定义（如 0 的负次幂）");
                 return zc(0.0);
             }
+            break;
+        case '@':   /* 极坐标相量 r∠θ（θ 按当前角度制解释，等义于 polar(a, b)）*/
+            if (b.im != 0.0) {
+                parser_set_error(p, pos, "极坐标角度应为实数");
+                return zc(0.0);
+            }
+            r = calc_c_from_polar(a.re, angle_to_rad(p, b.re));
             break;
         default:
             parser_set_error(p, pos, "内部错误：未知运算符 '%c'", op);
@@ -515,7 +535,28 @@ static CalcComplex parse_unary(Parser *p) {
         }
         return value;
     }
-    return parse_power(p);
+    return parse_angle(p);
+}
+
+/*
+ * angle -> power ('∠' power)?    // 极坐标相量 r∠θ（@ 是 ASCII 别名）
+ * ∠ 的优先级高于 * /，因此 5∠30*2 = (5∠30)*2
+ */
+static CalcComplex parse_angle(Parser *p) {
+    CalcComplex mag = parse_power(p);
+    if (p->failed) {
+        return zc(0.0);
+    }
+    if (p->lx.type == TOK_ANGLE) {
+        int op_pos = p->lx.token_pos;
+        lexer_next(&p->lx);
+        CalcComplex ang = parse_power(p);
+        if (p->failed) {
+            return zc(0.0);
+        }
+        return binary_op(p, op_pos, '@', mag, ang);
+    }
+    return mag;
 }
 
 /*

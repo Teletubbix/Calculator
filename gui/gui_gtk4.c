@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define GUI_VERSION "4.5.0"
+#define GUI_VERSION "4.6.0"
 
 /* —— 主题（东京之夜 / Tokyonight 风格）—— */
 static const char *CSS =
