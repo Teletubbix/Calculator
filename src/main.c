@@ -25,7 +25,7 @@
 #endif
 
 #define APP_NAME "Calculator"
-#define APP_VERSION "3.1.0"
+#define APP_VERSION "4.0.0"
 #define MAX_LINE 1024
 #define PRECISION_AUTO (-1)
 
@@ -86,12 +86,23 @@ typedef struct {
     double ans;         /* 上一次成功计算的结果（完整精度保存） */
     int has_ans;        /* 是否已经产生过结果 */
     int precision;      /* 显示小数位数；-1 表示自动格式 */
+    CalcAngleMode mode; /* 三角函数角度制 */
 } Session;
 
 static void session_init(Session *s) {
     s->ans = 0.0;
     s->has_ans = 0;
     s->precision = PRECISION_AUTO;
+    s->mode = CALC_MODE_RAD;
+}
+
+static const char *mode_name(CalcAngleMode mode) {
+    switch (mode) {
+        case CALC_MODE_DEG:  return "角度制(DEG)";
+        case CALC_MODE_GRAD: return "百分度(GRAD)";
+        case CALC_MODE_RAD:
+        default:             return "弧度制(RAD)";
+    }
 }
 
 static void print_banner(const Session *s) {
@@ -106,6 +117,7 @@ static void print_banner(const Session *s) {
     } else {
         printf("  当前显示精度：自动\n");
     }
+    printf("  当前角度制：%s\n", mode_name(s->mode));
 }
 
 static void print_help(void) {
@@ -121,13 +133,18 @@ static void print_help(void) {
         " 函数（输入弧度）：sin(x) cos(x) tan(x)\n"
         " 函数（输入角度）：sind(x) cosd(x) tand(x)\n"
         " 其他函数：sqrt(x) ln(x) log(x) log2(x) pow(a,b) exp(x) abs(x)\n"
-        "   说明：ln 是自然对数，log 是以 10 为底的对数。\n"
+        " 反三角：asin(x) acos(x) atan(x) / asind(x) acosd(x) atand(x)\n"
+        " 双曲：sinh(x) cosh(x) tanh(x)\n"
+        " 取整：floor(x) ceil(x) round(x) trunc(x)  其他：sign(x) atan2(y,x)\n"
+        " 二元：mod(a,b) gcd(a,b) lcm(a,b) comb(n,k) perm(n,k) logn(x,base)\n"
+        "   说明：ln 是自然对数，log 是以 10 为底的对数，logn(x,b) 是以 b 为底 x 的对数。\n"
         "\n"
-        " 常量：pi 或 π（圆周率）、e（自然常数）、Ans（上次结果）。\n"
+        " 常量：pi 或 π（圆周率）、e（自然常数）、tau(2π)、phi(黄金分割)、Ans（上次结果）。\n"
         "\n"
         " 命令（输入后按 Enter）：\n"
         "   precision N      设置显示精度，例如 precision 2 表示保留 2 位小数\n"
         "   precision auto   恢复自动格式（%%）\n"
+        "   mode deg/rad/grad 切换角度制（默认弧度制）\n"
         "   help             显示本帮助\n"
         "   quit / exit / q  退出（也可直接按 Esc）\n"
         "\n"
@@ -170,8 +187,8 @@ static int evaluate_line(Session *s, const char *line) {
     double result = 0.0;
     char error[512];
 
-    if (calc_evaluate_with_ans(line, s->ans, s->has_ans,
-                               &result, error, sizeof(error)) != 0) {
+    if (calc_evaluate_mode(line, s->mode, s->ans, s->has_ans,
+                           &result, error, sizeof(error)) != 0) {
         fprintf(stderr, "[ERROR] %s", error);
         return -1;
     }
@@ -227,6 +244,38 @@ static int handle_precision_command(Session *s, const char *line) {
 
 static int is_command(const char *line, const char *cmd) {
     return strcmp(line, cmd) == 0;
+}
+
+/*
+ * 处理 mode 命令。
+ * 返回：1 表示已处理（包括设置失败），0 表示不是 mode 命令。
+ */
+static int handle_mode_command(Session *s, const char *line) {
+    const char *p = line;
+    if (strncmp(p, "mode", 4) != 0 ||
+        (p[4] != '\0' && !isspace((unsigned char)p[4]))) {
+        return 0;
+    }
+    p += 4;
+    while (isspace((unsigned char)*p)) p++;
+
+    if (strncmp(p, "deg", 3) == 0 && (p[3] == '\0' || isspace((unsigned char)p[3]))) {
+        s->mode = CALC_MODE_DEG;
+        printf("角度制已设置为：角度制(DEG)。sin/cos/tan 现在按角度解释。\n");
+        return 1;
+    }
+    if (strncmp(p, "grad", 4) == 0 && (p[4] == '\0' || isspace((unsigned char)p[4]))) {
+        s->mode = CALC_MODE_GRAD;
+        printf("角度制已设置为：百分度(GRAD)。sin/cos/tan 现在按百分度解释。\n");
+        return 1;
+    }
+    if (strncmp(p, "rad", 3) == 0 && (p[3] == '\0' || isspace((unsigned char)p[3]))) {
+        s->mode = CALC_MODE_RAD;
+        printf("角度制已设置为：弧度制(RAD)。\n");
+        return 1;
+    }
+    printf("用法：mode deg（角度） / mode rad（弧度） / mode grad（百分度）。\n");
+    return 1;
 }
 
 /* ------------------------------------------------------------------ */
@@ -340,6 +389,9 @@ static int run_repl(void) {
         if (handle_precision_command(&session, input)) {
             continue;
         }
+        if (handle_mode_command(&session, input)) {
+            continue;
+        }
 
         evaluate_line(&session, input);
     }
@@ -373,6 +425,25 @@ static int run_command_line(int argc, char **argv) {
         }
         if (strcmp(argv[i], "--precision") == 0) {
             next_is_precision = 1;
+            continue;
+        }
+        if (strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-V") == 0) {
+            printf("%s v%s\n", APP_NAME, APP_VERSION);
+            return 0;
+        }
+        if (strcmp(argv[i], "--mode") == 0) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "[ERROR] --mode 需要一个参数 deg/rad/grad\n");
+                return 1;
+            }
+            const char *m = argv[++i];
+            if (strcmp(m, "deg") == 0)     session.mode = CALC_MODE_DEG;
+            else if (strcmp(m, "grad") == 0) session.mode = CALC_MODE_GRAD;
+            else if (strcmp(m, "rad") == 0) session.mode = CALC_MODE_RAD;
+            else {
+                fprintf(stderr, "[ERROR] --mode 只能是 deg/rad/grad\n");
+                return 1;
+            }
             continue;
         }
 

@@ -6,19 +6,24 @@
 - `linux` 分支：GTK3 图形界面（按钮 + 键盘输入）
 - `windows` 分支：Win32 图形界面（按钮 + 键盘输入）
 
-## ✨ v3.1.0 功能
+## ✨ v4.0.0 功能
 
 | 类别 | 支持内容 |
 |------|----------|
 | 基本运算 | `+` 加、`-` 减、`*` 乘、`/` 除 |
 | 乘方 | `^`（右结合），也可用 `pow(a, b)` |
 | 开根 | `sqrt(x)` |
-| 对数 | `ln(x)` 自然对数、`log(x)` 以 10 为底、`log2(x)` 以 2 为底 |
+| 对数 | `ln(x)` 自然对数、`log(x)` 以 10 为底、`log2(x)` 以 2 为底、`logn(x, base)` 任意底 |
 | 阶乘 | `n!`（后缀写法，如 `5!`） |
 | 三角函数（弧度制） | `sin(x)`、`cos(x)`、`tan(x)` |
 | 三角函数（角度制） | `sind(x)`、`cosd(x)`、`tand(x)` |
-| 其他函数 | `exp(x)`、`abs(x)` |
-| 常量 | `pi`（或 `π`）、`e`、`Ans` |
+| 反三角 | `asin(x)`、`acos(x)`、`atan(x)`（以及角度版 `asind/acosd/atand`）|
+| 双曲 | `sinh(x)`、`cosh(x)`、`tanh(x)` |
+| 取整 | `floor(x)`、`ceil(x)`、`round(x)`、`trunc(x)` |
+| 其他函数 | `exp(x)`、`abs(x)`、`sign(x)`、`atan2(y,x)`、`mod(a,b)`、`gcd(a,b)`、`lcm(a,b)`、`comb(n,k)`、`perm(n,k)` |
+| 角度模式 | `mode deg`（角度）、`mode rad`（弧度）、`mode grad`（百分度），影响 `sin/cos/tan` |
+| 常量 | `pi`（或 `π`）、`e`、`tau`、`phi`、`Ans` |
+| 图形界面 | GTK4 GUI（数字/运算符/科学函数按钮、Ans、DEG/RAD 切换、键盘输入）|
 | 连续运行 | 按 `Enter` 计算，按 `Esc` 退出，不退出程序 |
 | 记忆功能 | `Ans` 保存上一次计算结果，可继续参与运算 |
 | 显示精度 | `precision N` 保留 N 位小数；`precision auto` 恢复自动格式 |
@@ -46,6 +51,28 @@ cmake --build .
 ctest            # 运行测试
 ../bin/Calculator
 ```
+
+### 方式三：GTK4 图形界面（Linux 原生）
+
+```bash
+# 需要系统安装 GTK4 开发包（Debian/Ubuntu: libgtk-4-dev；Arch: gtk4）
+cd Calculator
+mkdir -p build && cd build
+cmake .. -DBUILD_TESTING=ON        # 会自动找到 GTK4 并构建 Calculator-gui
+cmake --build .
+./Calculator-gui                    # 启动图形界面
+```
+
+### 方式四：交叉编译到 Windows（在 WSL 里用 MSYS2）
+
+项目 CLI 与 GUI 都已支持交叉编译到 Windows（生成 `.exe`）。在 WSL 里执行：
+
+```bash
+./scripts/build_windows.sh          # 输出 bin/Calculator.exe 与 gui/Calculator-gui.exe
+```
+
+> 需要 WSL 侧挂载 MSYS2（本方案用 `D:\MSYS2`），且 MSYS2 内已装
+> `mingw-w64-x86_64-gcc`、`mingw-w64-x86_64-gtk4`、`mingw-w64-x86_64-pkgconf`。
 
 ## 📖 使用方法
 

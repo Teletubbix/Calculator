@@ -7,8 +7,15 @@
 extern "C" {
 #endif
 
+/* 三角函数角度制 */
+typedef enum {
+    CALC_MODE_DEG  = 0,  /* 角度制（degree）*/
+    CALC_MODE_RAD  = 1,  /* 弧度制（radian，默认）*/
+    CALC_MODE_GRAD = 2   /* 百分度（gradian，一圈=400）*/
+} CalcAngleMode;
+
 /*
- * 计算一个数学表达式的值（不含 Ans，旧版兼容接口）。
+ * 计算一个数学表达式的值（不含 Ans，旧版兼容接口，角度制为弧度）。
  *
  * 参数：
  *   expression        以 NUL 结尾的表达式字符串，例如 "2+3*4"、"sin(pi/2)"。
@@ -46,6 +53,26 @@ int calc_evaluate_with_ans(const char *expression,
                            double *result,
                            char *error_buffer,
                            size_t error_buffer_size);
+
+/*
+ * 计算表达式的值，允许使用 Ans，并指定三角函数角度制。
+ *
+ * 参数：
+ *   mode              角度制：CALC_MODE_DEG / CALC_MODE_RAD / CALC_MODE_GRAD。
+ *                     影响 sin/cos/tan 的输入解释；sind/cosd/tand 恒为角度制。
+ *   其余参数同 calc_evaluate_with_ans。
+ *
+ * 返回值：
+ *   0   计算成功。
+ *   -1  计算失败。
+ */
+int calc_evaluate_mode(const char *expression,
+                       CalcAngleMode mode,
+                       double ans,
+                       int has_ans,
+                       double *result,
+                       char *error_buffer,
+                       size_t error_buffer_size);
 
 #ifdef __cplusplus
 }

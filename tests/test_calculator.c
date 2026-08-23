@@ -64,6 +64,19 @@ static void expect_error(const char *expr) {
     }
 }
 
+static void expect_value_mode(const char *expr, CalcAngleMode mode, double expected, double tolerance) {
+    double result = 0.0;
+    char error[512] = {0};
+    int rc = calc_evaluate_mode(expr, mode, 0, 0, &result, error, sizeof(error));
+    if (rc != 0 || !near(result, expected, tolerance)) {
+        printf("FAIL  %-24s(模式=%d) 期望=%g  实际=%g  错误=%s\n",
+               expr, (int)mode, expected, result, rc != 0 ? error : "数值不符");
+        failures++;
+    } else {
+        printf("PASS  %-24s(模式=%d) = %g\n", expr, (int)mode, result);
+    }
+}
+
 int main(void) {
     /* 加减乘除 */
     expect_value("2+3", 5, 1e-12);
@@ -149,6 +162,51 @@ int main(void) {
     expect_error("2(3)");
     expect_error("   ");
     expect_error("7/0.0");
+
+    /* —— v4.0 新增一元函数 —— */
+    expect_value("asin(1)", M_PI / 2, 1e-12);
+    expect_value("acos(0)", M_PI / 2, 1e-12);
+    expect_value("atan(1)", M_PI / 4, 1e-12);
+    expect_value("asind(1)", 90, 1e-12);
+    expect_value("acosd(0)", 90, 1e-12);
+    expect_value("atand(1)", 45, 1e-12);
+    expect_value("sinh(0)", 0, 1e-12);
+    expect_value("cosh(0)", 1, 1e-12);
+    expect_value("tanh(0)", 0, 1e-12);
+    expect_value("floor(3.7)", 3, 1e-12);
+    expect_value("ceil(3.2)", 4, 1e-12);
+    expect_value("round(3.5)", 4, 1e-12);
+    expect_value("trunc(-3.7)", -3, 1e-12);
+    expect_value("sign(-5)", -1, 1e-12);
+    expect_value("sign(5)", 1, 1e-12);
+
+    /* —— v4.0 新增二元函数 —— */
+    expect_value("atan2(0,1)", 0, 1e-12);
+    expect_value("mod(10,3)", 1, 1e-12);
+    expect_value("gcd(12,18)", 6, 1e-12);
+    expect_value("lcm(4,6)", 12, 1e-12);
+    expect_value("comb(10,3)", 120, 1e-12);
+    expect_value("perm(10,3)", 720, 1e-12);
+    expect_value("logn(8,2)", 3, 1e-12);
+
+    /* —— v4.0 新增常量 —— */
+    expect_value("tau", 2 * M_PI, 1e-12);
+    expect_value("phi", (1 + sqrt(5)) / 2, 1e-12);
+
+    /* —— v4.0 角度模式 —— */
+    expect_value_mode("sin(30)", CALC_MODE_DEG, 0.5, 1e-12);
+    expect_value_mode("sin(pi/2)", CALC_MODE_RAD, 1, 1e-12);
+    expect_value_mode("sin(100)", CALC_MODE_GRAD, 1, 1e-12);
+    expect_value_mode("atan(1)", CALC_MODE_DEG, 45, 1e-9);
+    expect_value_mode("cos(100)", CALC_MODE_GRAD, 0, 1e-9);
+
+    /* —— v4.0 新增函数的错误用例 —— */
+    expect_error("asin(2)");
+    expect_error("acos(-2)");
+    expect_value("gcd(12,0)", 12, 1e-12);
+    expect_error("comb(3,5)");
+    expect_error("logn(8,1)");
+    expect_error("mod(5,0)");
 
     printf("\n测试结束：%s\n", failures == 0 ? "全部通过" : "存在失败用例");
     return failures == 0 ? 0 : 1;

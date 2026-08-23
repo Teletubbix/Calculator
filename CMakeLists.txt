@@ -32,6 +32,20 @@ endif()
 add_executable(Calculator src/main.c)
 target_link_libraries(Calculator PRIVATE calc_core)
 
+# —— GTK4 图形界面（可选：找到 gtk4 时构建）——
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(GTK4 QUIET gtk4)
+endif()
+if(GTK4_FOUND)
+    add_executable(Calculator-gui gui/gui_gtk4.c)
+    target_link_libraries(Calculator-gui PRIVATE calc_core ${GTK4_LIBRARIES})
+    target_include_directories(Calculator-gui PRIVATE ${GTK4_INCLUDE_DIRS})
+    message(STATUS "找到 GTK4，构建 GUI 目标 Calculator-gui")
+else()
+    message(STATUS "未找到 GTK4，跳过 GUI 目标（需要 libgtk-4-dev）")
+endif()
+
 # —— 单元测试 ——
 option(BUILD_TESTING "Build and register unit tests" ON)
 if(BUILD_TESTING)

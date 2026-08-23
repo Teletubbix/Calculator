@@ -154,6 +154,7 @@ typedef struct {
     char message[MAX_ERROR_LEN + 1];
     double ans_value;         /* 上一次计算结果，供 Ans 使用 */
     int has_ans;              /* 是否已经有上一次计算结果 */
+    CalcAngleMode mode;       /* 三角函数角度制 */
 } Parser;
 
 static void parser_set_error(Parser *p, int pos, const char *fmt, ...) {
@@ -223,26 +224,79 @@ static double binary_op(Parser *p, int pos, char op, double a, double b) {
     return r;
 }
 
+/* 按当前角度制把输入角换算成弧度 */
+static double angle_to_rad(Parser *p, double x) {
+    switch (p->mode) {
+        case CALC_MODE_DEG:  return x * M_PI / 180.0;
+        case CALC_MODE_GRAD: return x * M_PI / 200.0;
+        case CALC_MODE_RAD:
+        default:             return x;
+    }
+}
+
+/* 把弧度换算成当前角度制下的值（用于反三角函数的返回值） */
+static double rad_to_angle(Parser *p, double x) {
+    switch (p->mode) {
+        case CALC_MODE_DEG:  return x * 180.0 / M_PI;
+        case CALC_MODE_GRAD: return x * 200.0 / M_PI;
+        case CALC_MODE_RAD:
+        default:             return x;
+    }
+}
+
 /* 一元函数，同时做定义域检查 */
 static double unary_function(Parser *p, int pos, const char *name, double x) {
-    if (ident_equals(name, "sin")) {
-        return sin(x);
+    /* 三角函数（受角度制影响） */
+    if (ident_equals(name, "sin")) { return sin(angle_to_rad(p, x)); }
+    if (ident_equals(name, "cos")) { return cos(angle_to_rad(p, x)); }
+    if (ident_equals(name, "tan")) { return tan(angle_to_rad(p, x)); }
+
+    /* 三角函数（恒为角度制） */
+    if (ident_equals(name, "sind")) { return sin(x * M_PI / 180.0); }
+    if (ident_equals(name, "cosd")) { return cos(x * M_PI / 180.0); }
+    if (ident_equals(name, "tand")) { return tan(x * M_PI / 180.0); }
+
+    /* 反三角函数（结果按当前角度制输出） */
+    if (ident_equals(name, "asin")) {
+        if (x < -1.0 || x > 1.0) {
+            parser_set_error(p, pos, "asin 定义域错误：输入必须在 [-1, 1] 之间");
+            return 0.0;
+        }
+        return rad_to_angle(p, asin(x));
     }
-    if (ident_equals(name, "cos")) {
-        return cos(x);
+    if (ident_equals(name, "acos")) {
+        if (x < -1.0 || x > 1.0) {
+            parser_set_error(p, pos, "acos 定义域错误：输入必须在 [-1, 1] 之间");
+            return 0.0;
+        }
+        return rad_to_angle(p, acos(x));
     }
-    if (ident_equals(name, "tan")) {
-        return tan(x);
+    if (ident_equals(name, "atan")) {
+        return rad_to_angle(p, atan(x));
     }
-    if (ident_equals(name, "sind")) {
-        return sin(x * M_PI / 180.0);   /* 输入是角度制 */
+    if (ident_equals(name, "asind")) {
+        if (x < -1.0 || x > 1.0) {
+            parser_set_error(p, pos, "asind 定义域错误：输入必须在 [-1, 1] 之间");
+            return 0.0;
+        }
+        return asin(x) * 180.0 / M_PI;
     }
-    if (ident_equals(name, "cosd")) {
-        return cos(x * M_PI / 180.0);
+    if (ident_equals(name, "acosd")) {
+        if (x < -1.0 || x > 1.0) {
+            parser_set_error(p, pos, "acosd 定义域错误：输入必须在 [-1, 1] 之间");
+            return 0.0;
+        }
+        return acos(x) * 180.0 / M_PI;
     }
-    if (ident_equals(name, "tand")) {
-        return tan(x * M_PI / 180.0);
+    if (ident_equals(name, "atand")) {
+        return atan(x) * 180.0 / M_PI;
     }
+
+    /* 双曲函数 */
+    if (ident_equals(name, "sinh")) { return sinh(x); }
+    if (ident_equals(name, "cosh")) { return cosh(x); }
+    if (ident_equals(name, "tanh")) { return tanh(x); }
+
     if (ident_equals(name, "sqrt")) {
         if (x < 0.0) {
             parser_set_error(p, pos, "sqrt 定义域错误：负数没有实数平方根");
@@ -283,7 +337,84 @@ static double unary_function(Parser *p, int pos, const char *name, double x) {
     if (ident_equals(name, "abs")) {
         return fabs(x);
     }
+    if (ident_equals(name, "sign")) {
+        return (x > 0.0) ? 1.0 : (x < 0.0) ? -1.0 : 0.0;
+    }
+    if (ident_equals(name, "floor")) { return floor(x); }
+    if (ident_equals(name, "ceil"))  { return ceil(x); }
+    if (ident_equals(name, "round")) { return round(x); }
+    if (ident_equals(name, "trunc")) { return trunc(x); }
+
     parser_set_error(p, pos, "未知函数 '%s'", name);
+    return 0.0;
+}
+
+/* 二元函数（两个参数），做定义域检查 */
+static double binary_function(Parser *p, int pos, const char *name, double a, double b) {
+    if (ident_equals(name, "atan2")) {
+        return rad_to_angle(p, atan2(a, b));
+    }
+    if (ident_equals(name, "mod")) {
+        if (b == 0.0) {
+            parser_set_error(p, pos, "mod 错误：模数不能为 0");
+            return 0.0;
+        }
+        double r = fmod(a, b);
+        return r;
+    }
+    if (ident_equals(name, "gcd")) {
+        long long x = (long long)llround(a);
+        long long y = (long long)llround(b);
+        if (a < 0.0 || b < 0.0 || (double)x != a || (double)y != b) {
+            parser_set_error(p, pos, "gcd 要求两个非负整数，例如 gcd(12,18)");
+            return 0.0;
+        }
+        while (y != 0) { long long t = x % y; x = y; y = t; }
+        return (double)x;
+    }
+    if (ident_equals(name, "lcm")) {
+        long long x = (long long)llround(a);
+        long long y = (long long)llround(b);
+        if (a < 0.0 || b < 0.0 || (double)x != a || (double)y != b || (x == 0 && y == 0)) {
+            parser_set_error(p, pos, "lcm 要求两个非负整数，例如 lcm(4,6)");
+            return 0.0;
+        }
+        long long g = x, h = y;
+        while (h != 0) { long long t = g % h; g = h; h = t; }
+        return (double)(x / g * y);
+    }
+    if (ident_equals(name, "comb")) {   /* 组合数 C(n,k) */
+        long long n = (long long)llround(a);
+        long long k = (long long)llround(b);
+        if (a < 0.0 || b < 0.0 || (double)n != a || (double)k != b || k > n || n > 60.0) {
+            parser_set_error(p, pos, "comb 要求 n>=k>=0 且 n<=60，例如 comb(10,3)");
+            return 0.0;
+        }
+        if (k > n - k) k = n - k;
+        double r = 1.0;
+        for (long long i = 1; i <= k; i++) r = r * (double)(n - k + i) / (double)i;
+        return r;
+    }
+    if (ident_equals(name, "perm")) {   /* 排列数 P(n,k) */
+        long long n = (long long)llround(a);
+        long long k = (long long)llround(b);
+        if (a < 0.0 || b < 0.0 || (double)n != a || (double)k != b || k > n || n > 170.0) {
+            parser_set_error(p, pos, "perm 要求 n>=k>=0 且 n<=170，例如 perm(10,3)");
+            return 0.0;
+        }
+        double r = 1.0;
+        for (long long i = 0; i < k; i++) r *= (double)(n - i);
+        return r;
+    }
+    if (ident_equals(name, "logn")) {   /* 以 b 为底 a 的对数 */
+        if (a <= 0.0 || b <= 1.0 || b == 1.0) {
+            parser_set_error(p, pos, "logn 定义域错误：真数>0 且底数>0 且底数≠1");
+            return 0.0;
+        }
+        return log(a) / log(b);
+    }
+
+    parser_set_error(p, pos, "未知二元函数 '%s'", name);
     return 0.0;
 }
 
@@ -436,40 +567,42 @@ static double parse_primary(Parser *p) {
         if (p->lx.type == TOK_LPAREN) {
             lexer_next(&p->lx); /* 跳过 '(' */
 
-            if (ident_equals(name, "pow")) {
-                /* pow(a, b)：两个参数 */
-                double base = parse_expression(p);
-                if (p->failed) {
-                    return 0.0;
-                }
-                if (p->lx.type != TOK_COMMA) {
+            /* 解析参数列表（逗号分隔）。pow/atan2/mod/gcd/lcm/comb/perm/logn 是二元函数 */
+            double args[3];
+            int nargs = 0;
+            while (1) {
+                if (nargs >= 3) {
                     parser_set_error(p, p->lx.token_pos,
-                                     "pow 需要两个参数，格式：pow(底数, 指数)");
+                                     "函数 '%s' 参数过多（最多 2 个）", name);
                     return 0.0;
                 }
-                lexer_next(&p->lx);
-                double exponent = parse_expression(p);
+                args[nargs++] = parse_expression(p);
                 if (p->failed) {
                     return 0.0;
                 }
-                if (p->lx.type != TOK_RPAREN) {
-                    parser_set_error(p, p->lx.token_pos, "pow 缺少右括号 ')'");
-                    return 0.0;
+                if (p->lx.type == TOK_COMMA) {
+                    lexer_next(&p->lx);
+                    continue;
                 }
-                lexer_next(&p->lx);
-                return binary_op(p, ident_pos, '^', base, exponent);
-            }
-
-            double arg = parse_expression(p);
-            if (p->failed) {
-                return 0.0;
+                break;
             }
             if (p->lx.type != TOK_RPAREN) {
                 parser_set_error(p, p->lx.token_pos, "函数 '%s' 缺少右括号 ')'", name);
                 return 0.0;
             }
             lexer_next(&p->lx);
-            return unary_function(p, ident_pos, name, arg);
+
+            if (nargs == 1) {
+                return unary_function(p, ident_pos, name, args[0]);
+            }
+            if (nargs == 2) {
+                if (ident_equals(name, "pow")) {
+                    return binary_op(p, ident_pos, '^', args[0], args[1]);
+                }
+                return binary_function(p, ident_pos, name, args[0], args[1]);
+            }
+            parser_set_error(p, p->lx.token_pos, "函数 '%s' 需要 1 或 2 个参数", name);
+            return 0.0;
         }
 
         /* 不是函数，就按常量处理 */
@@ -479,6 +612,12 @@ static double parse_primary(Parser *p) {
         if (ident_equals(name, "e")) {
             return M_E;
         }
+        if (ident_equals(name, "tau")) {
+            return 2.0 * M_PI;
+        }
+        if (ident_equals(name, "phi")) {
+            return (1.0 + sqrt(5.0)) / 2.0;
+        }
         if (ident_equals(name, "ans")) {
             if (!p->has_ans) {
                 parser_set_error(p, ident_pos,
@@ -487,7 +626,7 @@ static double parse_primary(Parser *p) {
             }
             return p->ans_value;
         }
-        parser_set_error(p, ident_pos, "未知常量 '%s'（可用常量：pi、e、Ans）", name);
+        parser_set_error(p, ident_pos, "未知常量 '%s'（可用常量：pi、e、tau、phi、Ans）", name);
         return 0.0;
     }
 
@@ -549,11 +688,12 @@ static void format_error(const char *message,
 }
 
 static int calc_evaluate_impl(const char *expression,
-                             double ans_value,
-                             int has_ans,
-                             double *result,
-                             char *error_buffer,
-                             size_t error_buffer_size) {
+                              CalcAngleMode mode,
+                              double ans_value,
+                              int has_ans,
+                              double *result,
+                              char *error_buffer,
+                              size_t error_buffer_size) {
     if (expression == NULL || result == NULL) {
         return -1;
     }
@@ -562,6 +702,7 @@ static int calc_evaluate_impl(const char *expression,
     memset(&p, 0, sizeof(p));
     p.ans_value = ans_value;
     p.has_ans = has_ans;
+    p.mode = mode;
     lexer_init(&p.lx, expression);
     lexer_next(&p.lx);
 
@@ -595,7 +736,7 @@ int calc_evaluate(const char *expression,
                   double *result,
                   char *error_buffer,
                   size_t error_buffer_size) {
-    return calc_evaluate_impl(expression, 0.0, 0, result,
+    return calc_evaluate_impl(expression, CALC_MODE_RAD, 0.0, 0, result,
                               error_buffer, error_buffer_size);
 }
 
@@ -605,6 +746,17 @@ int calc_evaluate_with_ans(const char *expression,
                            double *result,
                            char *error_buffer,
                            size_t error_buffer_size) {
-    return calc_evaluate_impl(expression, ans, has_ans, result,
+    return calc_evaluate_impl(expression, CALC_MODE_RAD, ans, has_ans, result,
+                              error_buffer, error_buffer_size);
+}
+
+int calc_evaluate_mode(const char *expression,
+                       CalcAngleMode mode,
+                       double ans,
+                       int has_ans,
+                       double *result,
+                       char *error_buffer,
+                       size_t error_buffer_size) {
+    return calc_evaluate_impl(expression, mode, ans, has_ans, result,
                               error_buffer, error_buffer_size);
 }
