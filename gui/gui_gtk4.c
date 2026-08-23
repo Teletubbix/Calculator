@@ -2,19 +2,11 @@
  * Calculator — 版权所有 (C) 2026 Teletubbix (Yuanhang Jiang)
  * 本程序以 GNU Affero General Public License v3.0 传播；详见 LICENSE。
  */
-
 /*
- * Calculator v4.1.0 —— GTK4 图形界面（跨平台，可交叉编译到 Windows）
- *
- * 界面（现代深色主题，分组清晰）：
- *   - 顶部：大号显示屏（表达式输入）+ 结果标签
- *   - 中部：按功能分组的按钮：
- *       控制行(清除/常量/等号)
- *       函数行A(三角/开根/对数)
- *       函数行B(反三角/幂/杂项)
- *       数字与运算符
- *   - 底部：0/00/./exp/角度制切换
- *   - 支持键盘直接输入，Enter 计算
+ * Calculator v5.0.0 —— GTK4 图形界面（跨平台，可交叉编译）
+ * 主题系统：多套高对比、二次元风格主题（樱/海/薰衣草/薄荷/黄昏）。
+ * 主题与窗口分辨率、键位大小、字体、配色深度绑定（系统工程）。
+ * 布局统一为有序的 6 列分组（控制行/函数两行/数字运算符/底部）。
  */
 
 #include <gtk/gtk.h>
@@ -27,59 +19,97 @@
 #include <stdio.h>
 #include <string.h>
 
-#define GUI_VERSION "4.6.0"
+#define GUI_VERSION "5.0.0"
 
-/* —— 主题（东京之夜 / Tokyonight 风格）—— */
-static const char *CSS =
-    "window { background-color: #1a1b26; }\n"
-    "grid { padding: 4px; }\n"
-    "#display {\n"
-    "  background-color: #24283b;\n"
-    "  color: #c0caf5;\n"
-    "  font-family: \"Consolas\", \"DejaVu Sans Mono\", monospace;\n"
-    "  font-size: 22px;\n"
-    "  padding: 12px 14px;\n"
-    "  border-radius: 10px;\n"
-    "  border: 1px solid #3b4261;\n"
-    "  min-height: 40px;\n"
-    "}\n"
-    "#result {\n"
-    "  color: #9ece6a;\n"
-    "  font-size: 17px;\n"
-    "  font-weight: 600;\n"
-    "  padding: 4px 8px;\n"
-    "  min-height: 22px;\n"
-    "}\n"
-    "button {\n"
-    "  min-width: 56px;\n"
-    "  min-height: 48px;\n"
-    "  font-size: 16px;\n"
-    "  font-weight: 600;\n"
-    "  border-radius: 10px;\n"
-    "  border: none;\n"
-    "  background-color: #2f3549;\n"
-    "  color: #c0caf5;\n"
-    "  padding: 0;\n"
-    "}\n"
-    "button:hover { background-color: #3b4261; }\n"
-    "button:active { background-color: #565f89; }\n"
-    "button.digit { background-color: #24283b; }\n"
-    "button.fn { background-color: #3b4261; color: #c0caf5; }\n"
-    "button.op { background-color: #7aa2f7; color: #1a1b26; }\n"
-    "button.equals { background-color: #9ece6a; color: #1a1b26; }\n"
-    "button.clear { background-color: #f7768e; color: #1a1b26; }\n"
-    "button.mode { background-color: #bb9af7; color: #1a1b26; }\n";
+/* —— 主题（高对比：浅色底 + 深色字，运算符/等号醒目）—— */
+typedef struct {
+    const char *name;
+    const char *window_bg, *display_bg, *display_fg, *result_fg, *accent;
+    const char *btn_bg, *btn_fg;
+    const char *digit_bg, *digit_fg;
+    const char *fn_bg, *fn_fg;
+    const char *op_bg, *op_fg;
+    const char *equals_bg, *equals_fg;
+    const char *clear_bg, *clear_fg;
+    const char *mode_bg, *mode_fg;
+    int win_w, win_h, key_w, key_h, font, radius;
+} Theme;
+
+static const Theme THEMES[] = {
+    /* 樱粉 Sakura */
+    { "Sakura 樱", "#fff0f5", "#ffe4ec", "#4a2545", "#e0559a", "#ffb3c8",
+      "#f7d9e3", "#40232f", "#ffffff", "#40232f", "#ffd3e0", "#40232f",
+      "#ff8fb3", "#ffffff", "#ff5f9e", "#ffffff", "#ffb3c8", "#5a2542",
+      "#c9a0dc", "#2f1a3d", 460, 560, 62, 52, 16, 12 },
+    /* 海蓝 Ocean */
+    { "Ocean 海", "#e8f4ff", "#d6ecff", "#123a5e", "#1a7fd4", "#a5d3ff",
+      "#cfe8ff", "#10304f", "#ffffff", "#10304f", "#b8dcff", "#10304f",
+      "#4db8ff", "#ffffff", "#2b9ff3", "#ffffff", "#a5d3ff", "#15466e",
+      "#9fd0e8", "#12334f", 460, 560, 62, 52, 16, 12 },
+    /* 薰衣草 Lavender */
+    { "Lavender 薰衣草", "#f1ecff", "#e6dbff", "#2a1a4a", "#8a5cff", "#d8c2ff",
+      "#e0d2ff", "#2a1a4a", "#ffffff", "#2a1a4a", "#d4c2ff", "#2a1a4a",
+      "#a58bff", "#ffffff", "#7c5cff", "#ffffff", "#d8c2ff", "#2f1a4a",
+      "#b9a0e8", "#241636", 460, 560, 62, 52, 16, 12 },
+    /* 薄荷 Mint */
+    { "Mint 薄荷", "#eafff5", "#d3f5e8", "#0e3a2e", "#22b573", "#a8ecd0",
+      "#c7f2e0", "#0e3a2e", "#ffffff", "#0e3a2e", "#b2ecd5", "#0e3a2e",
+      "#3fc98a", "#04401a", "#17a866", "#ffffff", "#a8ecd0", "#0e3a2e",
+      "#8fe0bf", "#0c3323", 460, 560, 62, 52, 16, 12 },
+    /* 黄昏 Sunset */
+    { "Sunset 黄昏", "#fff0e0", "#ffe6cb", "#5a2c10", "#ff7a00", "#ffc999",
+      "#ffe2c4", "#4a2308", "#ffffff", "#4a2308", "#ffd9b3", "#4a2308",
+      "#ff9d47", "#ffffff", "#ff6b1a", "#ffffff", "#ffc999", "#5a2c10",
+      "#ffb36b", "#3a1c08", 460, 560, 62, 52, 16, 12 },
+};
+#define NTHEMES ((int)(sizeof THEMES / sizeof THEMES[0]))
 
 typedef struct {
-    GtkWidget *entry;        /* 表达式输入框（显示屏） */
-    GtkWidget *result;       /* 结果标签 */
-    GtkWidget *mode_btn;     /* 角度制切换按钮 */
-    CalcComplex ans;         /* 上一次结果（复数，完整精度） */
-    int has_ans;             /* 是否已有结果 */
-    CalcAngleMode mode;      /* 当前角度制 */
+    GtkWidget *window;
+    GtkWidget *entry;
+    GtkWidget *result;
+    GtkWidget *mode_btn;
+    GtkWidget *theme_btn;
+    int theme_idx;
+    CalcComplex ans;
+    int has_ans;
+    CalcAngleMode mode;
 } AppState;
 
 static AppState g_state;
+
+/* 根据主题生成 CSS 并应用（分辨率/键位/配色绑定主题） */
+static void apply_theme(const Theme *t) {
+    char css[2200];
+    snprintf(css, sizeof(css),
+        "window { background-color: %s; }\n"
+        "#display { background-color: %s; color: %s; font-family: \"Consolas\",\"DejaVu Sans Mono\",monospace;"
+        "  font-size: %dpx; padding: 12px 14px; border-radius: %dpx; border: 1px solid %s; min-height: 40px; }\n"
+        "#result { color: %s; font-size: 15px; font-weight: 600; padding: 4px 8px; min-height: 20px; }\n"
+        "grid { padding: 4px; }\n"
+        "button { min-width: %dpx; min-height: %dpx; font-size: %dpx; font-weight: 600;"
+        "  border-radius: %dpx; border: none; background-color: %s; color: %s; padding: 0; }\n"
+        "button:hover { filter: brightness(1.06); }\n"
+        "button:active { filter: brightness(0.90); }\n"
+        "button.digit { background-color: %s; color: %s; }\n"
+        "button.fn { background-color: %s; color: %s; }\n"
+        "button.op { background-color: %s; color: %s; }\n"
+        "button.equals { background-color: %s; color: %s; }\n"
+        "button.clear { background-color: %s; color: %s; }\n"
+        "button.mode { background-color: %s; color: %s; }\n",
+        t->window_bg, t->display_bg, t->display_fg, t->font + 6, t->radius, t->accent,
+        t->result_fg, t->key_w, t->key_h, t->font, t->radius,
+        t->btn_bg, t->btn_fg, t->digit_bg, t->digit_fg, t->fn_bg, t->fn_fg,
+        t->op_bg, t->op_fg, t->equals_bg, t->equals_fg, t->clear_bg, t->clear_fg,
+        t->mode_bg, t->mode_fg);
+    GtkCssProvider *p = gtk_css_provider_new();
+    gtk_css_provider_load_from_string(p, css);
+    gtk_style_context_add_provider_for_display(gdk_display_get_default(),
+                                               GTK_STYLE_PROVIDER(p),
+                                               GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(p);
+    gtk_window_set_default_size(GTK_WINDOW(g_state.window), t->win_w, t->win_h);
+}
 
 static void insert_text(const char *text) {
     GtkEditable *ed = GTK_EDITABLE(g_state.entry);
@@ -106,9 +136,7 @@ static void on_backspace(GtkButton *button, gpointer data) {
     GtkEditable *ed = GTK_EDITABLE(g_state.entry);
     GtkEntryBuffer *buf = gtk_entry_get_buffer(GTK_ENTRY(g_state.entry));
     int len = (int)gtk_entry_buffer_get_length(buf);
-    if (len > 0) {
-        gtk_editable_delete_text(ed, len - 1, len);
-    }
+    if (len > 0) gtk_editable_delete_text(ed, len - 1, len);
     gtk_widget_grab_focus(g_state.entry);
 }
 
@@ -116,55 +144,43 @@ static void do_evaluate(void) {
     const char *expr = gtk_editable_get_text(GTK_EDITABLE(g_state.entry));
     CalcComplex result = {0, 0};
     char error[512] = {0};
-    int rc = calc_evaluate_complex(expr, g_state.mode,
-                                   g_state.ans, g_state.has_ans,
+    int rc = calc_evaluate_complex(expr, g_state.mode, g_state.ans, g_state.has_ans,
                                    &result, error, sizeof(error));
-    if (rc != 0) {
-        gtk_label_set_label(GTK_LABEL(g_state.result), error);
-        return;
-    }
+    if (rc != 0) { gtk_label_set_label(GTK_LABEL(g_state.result), error); return; }
     g_state.ans = result;
     g_state.has_ans = 1;
     double tol = 1e-12 * (1.0 + fabs(result.re) + fabs(result.im));
     char out[160];
-    if (fabs(result.im) < tol) {
-        snprintf(out, sizeof(out), "= %.15g", result.re);
-    } else {
-        snprintf(out, sizeof(out), "= %.15g %s %.15gj", result.re,
-                 (result.im < 0.0 ? "-" : "+"), fabs(result.im));
-    }
+    if (fabs(result.im) < tol) snprintf(out, sizeof(out), "= %.15g", result.re);
+    else snprintf(out, sizeof(out), "= %.15g %s %.15gj", result.re,
+                  (result.im < 0.0 ? "-" : "+"), fabs(result.im));
     gtk_label_set_label(GTK_LABEL(g_state.result), out);
 }
 
-static void on_equals(GtkButton *button, gpointer data) {
-    (void)button; (void)data;
-    do_evaluate();
-}
-
-static void on_activate(GtkEntry *entry, gpointer data) {
-    (void)entry; (void)data;
-    do_evaluate();
-}
+static void on_equals(GtkButton *button, gpointer data) { (void)button; (void)data; do_evaluate(); }
+static void on_activate(GtkEntry *entry, gpointer data) { (void)entry; (void)data; do_evaluate(); }
 
 static void on_mode_toggle(GtkButton *button, gpointer data) {
     (void)data;
     g_state.mode = (g_state.mode == CALC_MODE_DEG) ? CALC_MODE_RAD : CALC_MODE_DEG;
-    const char *txt = (g_state.mode == CALC_MODE_DEG) ? "DEG" : "RAD";
-    gtk_button_set_label(button, txt);
+    gtk_button_set_label(button, (g_state.mode == CALC_MODE_DEG) ? "DEG" : "RAD");
+    gtk_widget_grab_focus(g_state.entry);
+}
+
+static void on_theme_switch(GtkButton *button, gpointer data) {
+    (void)data;
+    g_state.theme_idx = (g_state.theme_idx + 1) % NTHEMES;
+    apply_theme(&THEMES[g_state.theme_idx]);
+    gtk_button_set_label(button, THEMES[g_state.theme_idx].name);
     gtk_widget_grab_focus(g_state.entry);
 }
 
 static void grid_add(GtkGrid *grid, const char *label, const char *css_class,
                      int col, int row, void (*cb)(GtkButton*, gpointer)) {
     GtkWidget *btn = gtk_button_new_with_label(label);
-    if (css_class != NULL) {
-        gtk_widget_add_css_class(btn, css_class);
-    }
-    if (cb != NULL) {
-        g_signal_connect(btn, "clicked", G_CALLBACK(cb), NULL);
-    } else {
-        g_signal_connect(btn, "clicked", G_CALLBACK(on_button_clicked), NULL);
-    }
+    if (css_class != NULL) gtk_widget_add_css_class(btn, css_class);
+    if (cb != NULL) g_signal_connect(btn, "clicked", G_CALLBACK(cb), NULL);
+    else g_signal_connect(btn, "clicked", G_CALLBACK(on_button_clicked), NULL);
     gtk_widget_set_hexpand(btn, TRUE);
     gtk_widget_set_vexpand(btn, TRUE);
     gtk_grid_attach(grid, btn, col, row, 1, 1);
@@ -174,18 +190,11 @@ static void activate(GtkApplication *app, gpointer user_data) {
     (void)app; (void)user_data;
     memset(&g_state, 0, sizeof(g_state));
     g_state.mode = CALC_MODE_RAD;
-
-    /* 载入主题 */
-    GtkCssProvider *css = gtk_css_provider_new();
-    gtk_css_provider_load_from_string(css, CSS);
-    gtk_style_context_add_provider_for_display(gdk_display_get_default(),
-                                               GTK_STYLE_PROVIDER(css),
-                                               GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-    g_object_unref(css);
+    g_state.theme_idx = 0;
 
     GtkWidget *window = gtk_application_window_new(app);
+    g_state.window = window;
     gtk_window_set_title(GTK_WINDOW(window), "Calculator " GUI_VERSION);
-    gtk_window_set_default_size(GTK_WINDOW(window), 440, 520);
 
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
     gtk_widget_set_margin_top(box, 12);
@@ -193,7 +202,6 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_set_margin_start(box, 12);
     gtk_widget_set_margin_end(box, 12);
 
-    /* 显示屏 */
     g_state.entry = gtk_entry_new();
     gtk_widget_set_name(g_state.entry, "display");
     gtk_entry_set_placeholder_text(GTK_ENTRY(g_state.entry), "输入表达式，如 sin(pi/2)+3");
@@ -201,7 +209,6 @@ static void activate(GtkApplication *app, gpointer user_data) {
     g_signal_connect(g_state.entry, "activate", G_CALLBACK(on_activate), NULL);
     gtk_box_append(GTK_BOX(box), g_state.entry);
 
-    /* 结果标签 */
     g_state.result = gtk_label_new("");
     gtk_widget_set_name(g_state.result, "result");
     gtk_widget_set_hexpand(g_state.result, TRUE);
@@ -209,38 +216,34 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_label_set_selectable(GTK_LABEL(g_state.result), TRUE);
     gtk_box_append(GTK_BOX(box), g_state.result);
 
-    /* 按钮网格（6 列） */
     GtkWidget *grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
     gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
     gtk_widget_set_vexpand(grid, TRUE);
     gtk_box_append(GTK_BOX(box), grid);
 
-    /* 控制行：清除 / 常量 / 等号 */
-    grid_add(GTK_GRID(grid), "C",   "clear", 0, 0, on_clear);
+    /* 可控、有序的 6 列分组布局 */
+    grid_add(GTK_GRID(grid), "C", "clear", 0, 0, on_clear);
     grid_add(GTK_GRID(grid), "Del", "clear", 1, 0, on_backspace);
     grid_add(GTK_GRID(grid), "Ans", "digit", 2, 0, NULL);
-    grid_add(GTK_GRID(grid), "pi",  "digit", 3, 0, NULL);
-    grid_add(GTK_GRID(grid), "e",   "digit", 4, 0, NULL);
-    grid_add(GTK_GRID(grid), "=",   "equals", 5, 0, on_equals);
+    grid_add(GTK_GRID(grid), "pi", "digit", 3, 0, NULL);
+    grid_add(GTK_GRID(grid), "e", "digit", 4, 0, NULL);
+    grid_add(GTK_GRID(grid), "=", "equals", 5, 0, on_equals);
 
-    /* 函数行 A */
-    grid_add(GTK_GRID(grid), "sin",  "fn", 0, 1, NULL);
-    grid_add(GTK_GRID(grid), "cos",  "fn", 1, 1, NULL);
-    grid_add(GTK_GRID(grid), "tan",  "fn", 2, 1, NULL);
+    grid_add(GTK_GRID(grid), "sin", "fn", 0, 1, NULL);
+    grid_add(GTK_GRID(grid), "cos", "fn", 1, 1, NULL);
+    grid_add(GTK_GRID(grid), "tan", "fn", 2, 1, NULL);
     grid_add(GTK_GRID(grid), "sqrt", "fn", 3, 1, NULL);
-    grid_add(GTK_GRID(grid), "ln",   "fn", 4, 1, NULL);
-    grid_add(GTK_GRID(grid), "log",  "fn", 5, 1, NULL);
+    grid_add(GTK_GRID(grid), "ln", "fn", 4, 1, NULL);
+    grid_add(GTK_GRID(grid), "log", "fn", 5, 1, NULL);
 
-    /* 函数行 B */
     grid_add(GTK_GRID(grid), "asin", "fn", 0, 2, NULL);
     grid_add(GTK_GRID(grid), "acos", "fn", 1, 2, NULL);
     grid_add(GTK_GRID(grid), "atan", "fn", 2, 2, NULL);
-    grid_add(GTK_GRID(grid), "pow",  "fn", 3, 2, NULL);
-    grid_add(GTK_GRID(grid), "mod",  "fn", 4, 2, NULL);
-    grid_add(GTK_GRID(grid), "gcd",  "fn", 5, 2, NULL);
+    grid_add(GTK_GRID(grid), "pow", "fn", 3, 2, NULL);
+    grid_add(GTK_GRID(grid), "mod", "fn", 4, 2, NULL);
+    grid_add(GTK_GRID(grid), "gcd", "fn", 5, 2, NULL);
 
-    /* 数字 + 运算符 */
     grid_add(GTK_GRID(grid), "7", "digit", 0, 3, NULL);
     grid_add(GTK_GRID(grid), "8", "digit", 1, 3, NULL);
     grid_add(GTK_GRID(grid), "9", "digit", 2, 3, NULL);
@@ -262,9 +265,8 @@ static void activate(GtkApplication *app, gpointer user_data) {
     grid_add(GTK_GRID(grid), ")", "op", 4, 5, NULL);
     grid_add(GTK_GRID(grid), ".", "digit", 5, 5, NULL);
 
-    /* 底部：0 / 00 / exp / 角度制 / tau */
-    grid_add(GTK_GRID(grid), "0",   "digit", 0, 6, NULL);
-    grid_add(GTK_GRID(grid), "00",  "digit", 1, 6, NULL);
+    grid_add(GTK_GRID(grid), "0", "digit", 0, 6, NULL);
+    grid_add(GTK_GRID(grid), "00", "digit", 1, 6, NULL);
     grid_add(GTK_GRID(grid), "exp", "fn", 2, 6, NULL);
     grid_add(GTK_GRID(grid), "tau", "digit", 3, 6, NULL);
     g_state.mode_btn = gtk_button_new_with_label("RAD");
@@ -273,9 +275,16 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_set_hexpand(g_state.mode_btn, TRUE);
     gtk_widget_set_vexpand(g_state.mode_btn, TRUE);
     gtk_grid_attach(GTK_GRID(grid), g_state.mode_btn, 4, 6, 1, 1);
-    grid_add(GTK_GRID(grid), "phi", "digit", 5, 6, NULL);
+
+    g_state.theme_btn = gtk_button_new_with_label(THEMES[0].name);
+    gtk_widget_add_css_class(g_state.theme_btn, "mode");
+    g_signal_connect(g_state.theme_btn, "clicked", G_CALLBACK(on_theme_switch), NULL);
+    gtk_widget_set_hexpand(g_state.theme_btn, TRUE);
+    gtk_widget_set_vexpand(g_state.theme_btn, TRUE);
+    gtk_grid_attach(GTK_GRID(grid), g_state.theme_btn, 5, 6, 1, 1);
 
     gtk_window_set_child(GTK_WINDOW(window), box);
+    apply_theme(&THEMES[0]);
     gtk_window_present(GTK_WINDOW(window));
 }
 

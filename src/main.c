@@ -35,7 +35,7 @@
 #endif
 
 #define APP_NAME "Calculator"
-#define APP_VERSION "4.6.0"
+#define APP_VERSION "5.0.0"
 #define MAX_LINE 1024
 #define PRECISION_AUTO (-1)
 
