@@ -1,4 +1,9 @@
 /*
+ * Calculator — 版权所有 (C) 2026 Teletubbix (Yuanhang Jiang)
+ * 本程序以 GNU Affero General Public License v3.0 传播；详见 LICENSE。
+ */
+
+/*
  * 单位换算引擎
  * 线性单位：value * from.factor / to.factor
  * 温度：以摄氏度为核心，做偏移换算

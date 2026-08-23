@@ -1,3 +1,8 @@
+/*
+ * Calculator — 版权所有 (C) 2026 Teletubbix (Yuanhang Jiang)
+ * 本程序以 GNU Affero General Public License v3.0 传播；详见 LICENSE。
+ */
+
 #ifndef CALCULATOR_H
 #define CALCULATOR_H
 

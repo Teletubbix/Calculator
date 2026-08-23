@@ -1,4 +1,9 @@
 /*
+ * Calculator — 版权所有 (C) 2026 Teletubbix (Yuanhang Jiang)
+ * 本程序以 GNU Affero General Public License v3.0 传播；详见 LICENSE。
+ */
+
+/*
  * Calculator 主程序 v3.1.0
  *
  * 交互模式：
@@ -14,6 +19,7 @@
 #include "units.h"
 #include "matrix.h"
 #include "complex.h"
+#include "db.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -29,7 +35,7 @@
 #endif
 
 #define APP_NAME "Calculator"
-#define APP_VERSION "4.3.0"
+#define APP_VERSION "4.4.0"
 #define MAX_LINE 1024
 #define PRECISION_AUTO (-1)
 
@@ -531,6 +537,8 @@ static void register_algorithm_functions(void) {
     const calc_function *f = calc_matrix_functions(&n);
     calc_register_functions(f, n);
     f = calc_complex_functions(&n);
+    calc_register_functions(f, n);
+    f = calc_db_functions(&n);
     calc_register_functions(f, n);
 }
 

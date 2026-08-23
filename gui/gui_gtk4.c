@@ -1,4 +1,9 @@
 /*
+ * Calculator — 版权所有 (C) 2026 Teletubbix (Yuanhang Jiang)
+ * 本程序以 GNU Affero General Public License v3.0 传播；详见 LICENSE。
+ */
+
+/*
  * Calculator v4.1.0 —— GTK4 图形界面（跨平台，可交叉编译到 Windows）
  *
  * 界面（现代深色主题，分组清晰）：
@@ -16,12 +21,13 @@
 #include "calculator.h"
 #include "matrix.h"
 #include "complex.h"
+#include "db.h"
 
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 
-#define GUI_VERSION "4.3.0"
+#define GUI_VERSION "4.4.0"
 
 /* —— 主题（东京之夜 / Tokyonight 风格）—— */
 static const char *CSS =
@@ -278,6 +284,8 @@ int main(int argc, char **argv) {
     const calc_function *f = calc_matrix_functions(&n);
     calc_register_functions(f, n);
     f = calc_complex_functions(&n);
+    calc_register_functions(f, n);
+    f = calc_db_functions(&n);
     calc_register_functions(f, n);
 
     GtkApplication *app = gtk_application_new("org.teletubbix.calculator", G_APPLICATION_DEFAULT_FLAGS);

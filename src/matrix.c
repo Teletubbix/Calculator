@@ -1,4 +1,9 @@
 /*
+ * Calculator — 版权所有 (C) 2026 Teletubbix (Yuanhang Jiang)
+ * 本程序以 GNU Affero General Public License v3.0 传播；详见 LICENSE。
+ */
+
+/*
  * 矩阵库（独立动态库）：方阵行列式与迹。
  * 只定义函数并把描述交给主程序注册，不链接核心引擎。
  */

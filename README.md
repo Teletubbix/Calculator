@@ -6,7 +6,7 @@
 - `linux` 分支：GTK3 图形界面（按钮 + 键盘输入）
 - `windows` 分支：Win32 图形界面（按钮 + 键盘输入）
 
-## ✨ v4.3.0 功能
+## ✨ v4.4.0 功能
 
 | 类别 | 支持内容 |
 |------|----------|
@@ -21,6 +21,7 @@
 | 取整 | `floor(x)`、`ceil(x)`、`round(x)`、`trunc(x)` |
 | 其他函数 | `exp(x)`、`abs(x)`、`sign(x)`、`atan2(y,x)`、`mod/gcd/lcm/comb/perm/logn` |
 | **复数（通信核心）** | 完整支持：`3+4j`、`4j`、`2i` 虚数单位字面量；复数四则运算 `+ - * / ^`；复数函数 `sin/cos/sqrt/ln/exp/pow`；`cabs(实,虚)` 模、`carg(实,虚)` 辐角（随角度模式）——相量/阻抗分析刚需 |
+| **dB/功率级（通信）** | `dbm(mW)`、`mw(dBm)`、`dbw(W)`、`w(dBW)`、`pow2db(功率比)`、`db2pow(dB)`——通信功率换算直接进表达式 |
 | **矩阵（方阵）** | `det2/det3`（行列式）、`trace2/trace3`（迹）——考试常用 |
 | **单位换算** | `convert <值> <源> <目标>`：长度/质量/温度/数据/时间/速度/功率/能量/频率/压强/dB |
 | 角度模式 | `mode deg` / `mode rad` / `mode grad`，影响 `sin/cos/tan` 与 `carg` |

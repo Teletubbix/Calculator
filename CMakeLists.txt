@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Calculator VERSION 4.3.0 LANGUAGES C)
+project(Calculator VERSION 4.4.0 LANGUAGES C)
 
 # —— 编译标准 ——
 set(CMAKE_C_STANDARD 11)
@@ -41,9 +41,15 @@ if(NOT WIN32)
     target_link_libraries(calc_complex PUBLIC m)
 endif()
 
+add_library(calc_db SHARED src/db.c)
+target_include_directories(calc_db PUBLIC ${CMAKE_SOURCE_DIR}/include)
+if(NOT WIN32)
+    target_link_libraries(calc_db PUBLIC m)
+endif()
+
 # 主程序
 add_executable(Calculator src/main.c)
-target_link_libraries(Calculator PRIVATE calc_core calc_units calc_matrix calc_complex)
+target_link_libraries(Calculator PRIVATE calc_core calc_units calc_matrix calc_complex calc_db)
 
 # —— GTK4 图形界面（可选：找到 gtk4 时构建）——
 find_package(PkgConfig QUIET)
@@ -52,7 +58,7 @@ if(PkgConfig_FOUND)
 endif()
 if(GTK4_FOUND)
     add_executable(Calculator-gui gui/gui_gtk4.c)
-    target_link_libraries(Calculator-gui PRIVATE calc_core calc_matrix calc_complex ${GTK4_LIBRARIES})
+    target_link_libraries(Calculator-gui PRIVATE calc_core calc_matrix calc_complex calc_db ${GTK4_LIBRARIES})
     target_include_directories(Calculator-gui PRIVATE ${GTK4_INCLUDE_DIRS})
     message(STATUS "找到 GTK4，构建 GUI 目标 Calculator-gui")
 else()
@@ -70,7 +76,7 @@ endif()
 
 # —— 安装规则 ——
 include(GNUInstallDirs)
-foreach(t calc_core calc_units calc_matrix calc_complex)
+foreach(t calc_core calc_units calc_matrix calc_complex calc_db)
     install(TARGETS ${t}
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endforeach()

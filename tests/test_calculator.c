@@ -1,4 +1,9 @@
 /*
+ * Calculator — 版权所有 (C) 2026 Teletubbix (Yuanhang Jiang)
+ * 本程序以 GNU Affero General Public License v3.0 传播；详见 LICENSE。
+ */
+
+/*
  * Calculator 自动测试
  *
  * 覆盖需求中的全部基本运算：
@@ -10,6 +15,7 @@
 #include "matrix.h"
 #include "complex.h"
 #include "units.h"
+#include "db.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -114,6 +120,8 @@ int main(void) {
     const calc_function *f = calc_matrix_functions(&n);
     calc_register_functions(f, n);
     f = calc_complex_functions(&n);
+    calc_register_functions(f, n);
+    f = calc_db_functions(&n);
     calc_register_functions(f, n);
 
     /* 加减乘除 */
@@ -306,6 +314,17 @@ int main(void) {
     expect_unit(2, "h", "min", 120, 1e-9);
     expect_unit(1, "lb", "kg", 0.45359237, 1e-9);
     expect_unit(30, "degC", "degC", 30, 1e-12);
+
+    /* —— v4.4 dB / 功率级函数 —— */
+    expect_value("dbm(100)", 20, 1e-9);        /* 100 mW = 20 dBm */
+    expect_value("mw(20)", 100, 1e-9);         /* 20 dBm = 100 mW */
+    expect_value("dbw(1)", 0, 1e-9);           /* 1 W = 0 dBW */
+    expect_value("w(0)", 1, 1e-9);             /* 0 dBW = 1 W */
+    expect_value("pow2db(100)", 20, 1e-9);     /* 100x 功率比 = 20 dB */
+    expect_value("db2pow(20)", 100, 1e-9);     /* 20 dB = 100x */
+    expect_value("mw(0)", 1, 1e-9);            /* 0 dBm = 1 mW */
+    expect_error("pow2db(0)");
+    expect_error("dbm(-5)");
 
     printf("\n测试结束：%s\n", failures == 0 ? "全部通过" : "存在失败用例");
     return failures == 0 ? 0 : 1;

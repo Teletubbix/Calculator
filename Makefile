@@ -26,7 +26,8 @@ CORE_LIB    := $(BIN_DIR)/libcalc_core.so
 UNITS_LIB   := $(BIN_DIR)/libcalc_units.so
 MATRIX_LIB  := $(BIN_DIR)/libcalc_matrix.so
 COMPLEX_LIB := $(BIN_DIR)/libcalc_complex.so
-ALG_LIBS    := $(CORE_LIB) $(UNITS_LIB) $(MATRIX_LIB) $(COMPLEX_LIB)
+DB_LIB      := $(BIN_DIR)/libcalc_db.so
+ALG_LIBS    := $(CORE_LIB) $(UNITS_LIB) $(MATRIX_LIB) $(COMPLEX_LIB) $(DB_LIB)
 
 .PHONY: all run test clean
 
@@ -47,14 +48,17 @@ $(MATRIX_LIB): src/matrix.c include/matrix.h include/calculator.h | $(BIN_DIR)
 $(COMPLEX_LIB): src/complex.c include/complex.h include/calculator.h | $(BIN_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared src/complex.c -o $@ $(LDLIBS)
 
+$(DB_LIB): src/db.c include/db.h include/calculator.h | $(BIN_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared src/db.c -o $@ $(LDLIBS)
+
 $(TARGET): $(SRC_MAIN) $(ALG_LIBS) $(HDR) | $(BIN_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(SRC_MAIN) -o $@ \
-		-L$(BIN_DIR) -lcalc_core -lcalc_units -lcalc_matrix -lcalc_complex \
+		-L$(BIN_DIR) -lcalc_core -lcalc_units -lcalc_matrix -lcalc_complex -lcalc_db \
 		-Wl,-rpath,'$$ORIGIN' $(LDLIBS)
 
-# 测试直接编译源码（含矩阵/复数），便于单测
-$(TEST): $(SRC_TEST) src/calculator.c src/matrix.c src/complex.c src/units.c $(HDR) | $(BIN_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(SRC_TEST) src/calculator.c src/matrix.c src/complex.c src/units.c -o $@ $(LDLIBS)
+# 测试直接编译源码（含矩阵/复数/单位），便于单测
+$(TEST): $(SRC_TEST) src/calculator.c src/matrix.c src/complex.c src/units.c src/db.c $(HDR) | $(BIN_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(SRC_TEST) src/calculator.c src/matrix.c src/complex.c src/units.c src/db.c -o $@ $(LDLIBS)
 
 run: $(TARGET)
 	./$(TARGET)
