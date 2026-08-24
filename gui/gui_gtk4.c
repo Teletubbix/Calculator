@@ -3,7 +3,7 @@
  * 本程序以 GNU Affero General Public License v3.0 传播；详见 LICENSE。
  */
 /*
- * Calculator v6.0.2 —— GTK4 图形界面（跨平台，可交叉编译）
+ * Calculator v6.0.3 —— GTK4 图形界面（跨平台，可交叉编译）
  * 主题系统：多套高对比、二次元风格主题（樱/海/薰衣草/薄荷/黄昏）。
  * 主题与窗口分辨率、键位大小、字体、配色深度绑定（系统工程）。
  * 布局统一为有序的 6 列分组（控制行/函数两行/数字运算符/底部）。
@@ -29,7 +29,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define GUI_VERSION "6.0.2"
+#define GUI_VERSION "6.0.3"
 
 /* —— 原神主题（渐变背景，数字/函数=浅底深字，运算符/等号=深底白字，保证高对比）—— */
 typedef struct {
@@ -52,37 +52,37 @@ static const Theme THEMES[] = {
     { "原神·蒙德 风", "#5795a8", "#cde6ec", "#eef6f8", "#1f3b40", "#2b8397", "#8ab9c9",
       "#f2f4f6", "#111111", "#ffffff", "#111111", "#d9edf0", "#111111",
       "#eaf2f5", "#111111", "#dceaef", "#111111", "#eaf2f5", "#111111",
-      "#e5f0f3", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/mondstadt.png" },
+      "#e5f0f3", "#111111", 420, 540, 60, 46, 16, 14, "themes/img/mondstadt.png" },
     /* 璃月 · 岩（金） */
     { "原神·璃月 岩", "#c9a96a", "#efe0c0", "#fbf5e8", "#3a2c14", "#b8860b", "#d8bd8a",
       "#f2f4f6", "#111111", "#ffffff", "#111111", "#f0e6cc", "#111111",
       "#f8f3ea", "#111111", "#f3ebdc", "#111111", "#f8f3ea", "#111111",
-      "#f6f0e5", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/liyue.png" },
+      "#f6f0e5", "#111111", 420, 540, 60, 46, 16, 14, "themes/img/liyue.png" },
     /* 稻妻 · 雷（紫） */
     { "原神·稻妻 雷", "#6a5a9e", "#c3b3ea", "#f4f0fb", "#241a3d", "#7c3aed", "#b9a6e8",
       "#f2f4f6", "#111111", "#ffffff", "#111111", "#e5dbf5", "#111111",
       "#f2effb", "#111111", "#eae4f8", "#111111", "#f2effb", "#111111",
-      "#f0ebfa", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/inazuma.png" },
+      "#f0ebfa", "#111111", 420, 540, 60, 46, 16, 14, "themes/img/inazuma.png" },
     /* 须弥 · 草（绿） */
     { "原神·须弥 草", "#4a9e6b", "#c2e6cf", "#eefaf2", "#123726", "#1f9d55", "#9fd4b4",
       "#f2f4f6", "#111111", "#ffffff", "#111111", "#dff2e5", "#111111",
       "#eef7f2", "#111111", "#e2f2e8", "#111111", "#eef7f2", "#111111",
-      "#eaf6ee", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/sumeru.png" },
+      "#eaf6ee", "#111111", 420, 540, 60, 46, 16, 14, "themes/img/sumeru.png" },
     /* 枫丹 · 水（蓝） */
     { "原神·枫丹 水", "#4a90c9", "#bcd8ec", "#eaf4fb", "#12283c", "#1e90d6", "#a8cbe6",
       "#f2f4f6", "#111111", "#ffffff", "#111111", "#dcecf7", "#111111",
       "#eff6fb", "#111111", "#e5eff8", "#111111", "#eff6fb", "#111111",
-      "#ecf4fa", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/fontaine.png" },
+      "#ecf4fa", "#111111", 420, 540, 60, 46, 16, 14, "themes/img/fontaine.png" },
     /* 纳塔 · 火（橙红，v6.0 新增） */
     { "原神·纳塔 火", "#c65b3a", "#f3d0a8", "#fdf3e4", "#3a1d10", "#d9541e", "#f0b48a",
       "#f2f4f6", "#111111", "#ffffff", "#111111", "#f8e0c8", "#111111",
       "#fcf2ea", "#111111", "#fae8dc", "#111111", "#fcf2ea", "#111111",
-      "#fceee5", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/natlan.png" },
+      "#fceee5", "#111111", 420, 540, 60, 46, 16, 14, "themes/img/natlan.png" },
     /* 至冬 · 冰（冰蓝白，v6.0 新增） */
     { "原神·至冬 冰", "#5b7ba3", "#dbe7f5", "#f2f7fc", "#14273c", "#2f7fb8", "#b3cee6",
       "#f2f4f6", "#111111", "#ffffff", "#111111", "#e2eef9", "#111111",
       "#f1f6fb", "#111111", "#e8f0f8", "#111111", "#f1f6fb", "#111111",
-      "#eef4fa", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/snezhnaya.png" },
+      "#eef4fa", "#111111", 420, 540, 60, 46, 16, 14, "themes/img/snezhnaya.png" },
 };
 #define NTHEMES ((int)(sizeof THEMES / sizeof THEMES[0]))
 
@@ -386,8 +386,8 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_box_append(GTK_BOX(box), g_state.result);
 
     GtkWidget *grid = gtk_grid_new();
-    gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 6);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 6);
     gtk_widget_set_vexpand(grid, TRUE);
     gtk_box_append(GTK_BOX(box), grid);
 
@@ -473,7 +473,22 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_window_present(GTK_WINDOW(window));
 }
 
+/* 过滤 Windows 上无害的 dbus 警告，其余日志交给默认处理器 */
+static void quiet_gio_log(const gchar *domain, GLogLevelFlags level,
+                          const gchar *message, gpointer user_data) {
+    (void)user_data;
+    if (domain && message && strstr(message, "win32 session dbus binary not found")) {
+        return;
+    }
+    g_log_default_handler(domain, level, message, user_data);
+}
+
 int main(int argc, char **argv) {
+    /* 抑制 Windows 上无害的 "win32 session dbus binary not found" 警告 */
+    g_log_set_handler("GLib-GIO",
+                      G_LOG_LEVEL_WARNING | G_LOG_LEVEL_MESSAGE,
+                      (GLogFunc)quiet_gio_log, NULL);
+
     size_t n;
     const calc_function *f = calc_matrix_functions(&n);
     calc_register_functions(f, n);
