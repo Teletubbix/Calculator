@@ -48,41 +48,41 @@ typedef struct {
 } Theme;
 
 static const Theme THEMES[] = {
-    /* 蒙德 · 风（青绿） */
+    /* 蒙德 · 风（青绿）—— 全部符号统一近黑，浅色底保证高可读 */
     { "原神·蒙德 风", "#5795a8", "#cde6ec", "#eef6f8", "#1f3b40", "#2b8397", "#8ab9c9",
-      "#ffffff", "#1f3b40", "#ffffff", "#1f3b40", "#d9edf0", "#17343a",
-      "#1f6b7d", "#ffffff", "#125563", "#ffffff", "#e07a5f", "#ffffff",
-      "#2b8397", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/mondstadt.png" },
+      "#f2f4f6", "#111111", "#ffffff", "#111111", "#d9edf0", "#111111",
+      "#eaf2f5", "#111111", "#dceaef", "#111111", "#eaf2f5", "#111111",
+      "#e5f0f3", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/mondstadt.png" },
     /* 璃月 · 岩（金） */
     { "原神·璃月 岩", "#c9a96a", "#efe0c0", "#fbf5e8", "#3a2c14", "#b8860b", "#d8bd8a",
-      "#ffffff", "#3a2c14", "#ffffff", "#3a2c14", "#f0e6cc", "#3a2c14",
-      "#8a6d3b", "#ffffff", "#6b5025", "#ffffff", "#b5651f", "#ffffff",
-      "#96743d", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/liyue.png" },
+      "#f2f4f6", "#111111", "#ffffff", "#111111", "#f0e6cc", "#111111",
+      "#f8f3ea", "#111111", "#f3ebdc", "#111111", "#f8f3ea", "#111111",
+      "#f6f0e5", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/liyue.png" },
     /* 稻妻 · 雷（紫） */
     { "原神·稻妻 雷", "#6a5a9e", "#c3b3ea", "#f4f0fb", "#241a3d", "#7c3aed", "#b9a6e8",
-      "#ffffff", "#241a3d", "#ffffff", "#241a3d", "#e5dbf5", "#241a3d",
-      "#5e35b1", "#ffffff", "#4527a0", "#ffffff", "#8e3ae8", "#ffffff",
-      "#6a1db9", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/inazuma.png" },
+      "#f2f4f6", "#111111", "#ffffff", "#111111", "#e5dbf5", "#111111",
+      "#f2effb", "#111111", "#eae4f8", "#111111", "#f2effb", "#111111",
+      "#f0ebfa", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/inazuma.png" },
     /* 须弥 · 草（绿） */
     { "原神·须弥 草", "#4a9e6b", "#c2e6cf", "#eefaf2", "#123726", "#1f9d55", "#9fd4b4",
-      "#ffffff", "#123726", "#ffffff", "#123726", "#dff2e5", "#123726",
-      "#15803d", "#ffffff", "#0f6a33", "#ffffff", "#65a30d", "#ffffff",
-      "#0e7a3d", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/sumeru.png" },
+      "#f2f4f6", "#111111", "#ffffff", "#111111", "#dff2e5", "#111111",
+      "#eef7f2", "#111111", "#e2f2e8", "#111111", "#eef7f2", "#111111",
+      "#eaf6ee", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/sumeru.png" },
     /* 枫丹 · 水（蓝） */
     { "原神·枫丹 水", "#4a90c9", "#bcd8ec", "#eaf4fb", "#12283c", "#1e90d6", "#a8cbe6",
-      "#ffffff", "#12283c", "#ffffff", "#12283c", "#dcecf7", "#12283c",
-      "#1565c0", "#ffffff", "#0d47a1", "#ffffff", "#e5731f", "#ffffff",
-      "#1a73b8", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/fontaine.png" },
+      "#f2f4f6", "#111111", "#ffffff", "#111111", "#dcecf7", "#111111",
+      "#eff6fb", "#111111", "#e5eff8", "#111111", "#eff6fb", "#111111",
+      "#ecf4fa", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/fontaine.png" },
     /* 纳塔 · 火（橙红，v6.0 新增） */
     { "原神·纳塔 火", "#c65b3a", "#f3d0a8", "#fdf3e4", "#3a1d10", "#d9541e", "#f0b48a",
-      "#ffffff", "#3a1d10", "#ffffff", "#3a1d10", "#f8e0c8", "#3a1d10",
-      "#b23a1f", "#ffffff", "#8f2a12", "#ffffff", "#d97706", "#ffffff",
-      "#b03a1a", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/natlan.png" },
+      "#f2f4f6", "#111111", "#ffffff", "#111111", "#f8e0c8", "#111111",
+      "#fcf2ea", "#111111", "#fae8dc", "#111111", "#fcf2ea", "#111111",
+      "#fceee5", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/natlan.png" },
     /* 至冬 · 冰（冰蓝白，v6.0 新增） */
     { "原神·至冬 冰", "#5b7ba3", "#dbe7f5", "#f2f7fc", "#14273c", "#2f7fb8", "#b3cee6",
-      "#ffffff", "#14273c", "#ffffff", "#14273c", "#e2eef9", "#14273c",
-      "#22557f", "#ffffff", "#143a5c", "#ffffff", "#4a9dd8", "#ffffff",
-      "#1f5680", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/snezhnaya.png" },
+      "#f2f4f6", "#111111", "#ffffff", "#111111", "#e2eef9", "#111111",
+      "#f1f6fb", "#111111", "#e8f0f8", "#111111", "#f1f6fb", "#111111",
+      "#eef4fa", "#111111", 440, 560, 62, 52, 16, 14, "themes/img/snezhnaya.png" },
 };
 #define NTHEMES ((int)(sizeof THEMES / sizeof THEMES[0]))
 
@@ -348,6 +348,19 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_set_margin_bottom(box, 12);
     gtk_widget_set_margin_start(box, 12);
     gtk_widget_set_margin_end(box, 12);
+
+    /* 顶部 Genshin Impact 徽标（随可执行文件同级或 assets/ 查找）*/
+    {
+        char logo_path[1024];
+        if (asset_path("assets/logo.png", logo_path, sizeof(logo_path))) {
+            GtkWidget *logo = gtk_image_new_from_file(logo_path);
+            gtk_image_set_pixel_size(GTK_IMAGE(logo), 40);
+            gtk_widget_set_halign(logo, GTK_ALIGN_CENTER);
+            gtk_widget_set_margin_top(logo, 2);
+            gtk_widget_set_margin_bottom(logo, 4);
+            gtk_box_append(GTK_BOX(box), logo);
+        }
+    }
 
     g_state.entry = gtk_entry_new();
     gtk_widget_set_name(g_state.entry, "display");
