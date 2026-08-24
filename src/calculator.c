@@ -170,6 +170,7 @@ typedef struct {
     char message[MAX_ERROR_LEN + 1];
     CalcComplex ans_value;         /* 上一次计算结果，供 Ans 使用 */
     int has_ans;              /* 是否已经有上一次计算结果 */
+    double x_value;           /* 变量 x 的当前值（供 integ/deriv/root/sum 等使用） */
     CalcAngleMode mode;       /* 三角函数角度制 */
 } Parser;
 
@@ -703,7 +704,10 @@ static CalcComplex parse_primary(Parser *p) {
             }
             return p->ans_value;
         }
-        parser_set_error(p, ident_pos, "未知常量 '%s'（可用常量：pi、e、tau、phi、j、Ans）", name);
+        if (ident_equals(name, "x")) {   /* 变量 x（微积分/数值工具用） */
+            return zc(p->x_value);
+        }
+        parser_set_error(p, ident_pos, "未知常量 '%s'（可用常量：pi、e、tau、phi、j、Ans、x）", name);
         return zc(0.0);
     }
 
@@ -768,6 +772,7 @@ static int calc_evaluate_impl(const char *expression,
                               CalcAngleMode mode,
                               CalcComplex ans_value,
                               int has_ans,
+                              double x_value,
                               CalcComplex *result,
                               char *error_buffer,
                               size_t error_buffer_size) {
@@ -779,6 +784,7 @@ static int calc_evaluate_impl(const char *expression,
     memset(&p, 0, sizeof(p));
     p.ans_value = ans_value;
     p.has_ans = has_ans;
+    p.x_value = x_value;
     p.mode = mode;
     lexer_init(&p.lx, expression);
     lexer_next(&p.lx);
@@ -817,7 +823,7 @@ int calc_evaluate_complex(const char *expression,
                           CalcComplex *result,
                           char *error_buffer,
                           size_t error_buffer_size) {
-    return calc_evaluate_impl(expression, mode, ans, has_ans, result,
+    return calc_evaluate_impl(expression, mode, ans, has_ans, 0.0, result,
                               error_buffer, error_buffer_size);
 }
 
@@ -826,7 +832,7 @@ int calc_evaluate(const char *expression,
                   char *error_buffer,
                   size_t error_buffer_size) {
     CalcComplex c = { 0, 0 };
-    int rc = calc_evaluate_impl(expression, CALC_MODE_RAD, zc(0.0), 0, &c,
+    int rc = calc_evaluate_impl(expression, CALC_MODE_RAD, zc(0.0), 0, 0.0, &c,
                                 error_buffer, error_buffer_size);
     if (rc == 0) *result = c.re;
     return rc;
@@ -839,7 +845,7 @@ int calc_evaluate_with_ans(const char *expression,
                            char *error_buffer,
                            size_t error_buffer_size) {
     CalcComplex c = { 0, 0 };
-    int rc = calc_evaluate_impl(expression, CALC_MODE_RAD, zc(ans), has_ans, &c,
+    int rc = calc_evaluate_impl(expression, CALC_MODE_RAD, zc(ans), has_ans, 0.0, &c,
                                 error_buffer, error_buffer_size);
     if (rc == 0) *result = c.re;
     return rc;
@@ -853,8 +859,238 @@ int calc_evaluate_mode(const char *expression,
                        char *error_buffer,
                        size_t error_buffer_size) {
     CalcComplex c = { 0, 0 };
-    int rc = calc_evaluate_impl(expression, mode, zc(ans), has_ans, &c,
+    int rc = calc_evaluate_impl(expression, mode, zc(ans), has_ans, 0.0, &c,
                                 error_buffer, error_buffer_size);
     if (rc == 0) *result = c.re;
     return rc;
+}
+
+/* ================================================================== */
+/* 数值工具（v6.0）：把表达式看成以 x 为自变量的函数 f(x)。               */
+/* ================================================================== */
+
+/* 计算 f(x) 在 x 处的复数值（用于数值方法的内部求值）。 */
+static int calc_eval_fx(const char *expression, CalcAngleMode mode,
+                        double x, CalcComplex *out) {
+    char err[256];
+    return calc_evaluate_impl(expression, mode, zc(0.0), 0, x, out,
+                              err, sizeof(err));
+}
+
+/* 计算 f(x) 在给定 x 处的值（x 为实自变量，结果允许为复数）。 */
+int calc_evaluate_x(const char *expression,
+                    CalcAngleMode mode,
+                    double x_value,
+                    CalcComplex *result,
+                    char *error_buffer,
+                    size_t error_buffer_size) {
+    /* calc_evaluate_impl 只接受实自变量的 x；用 x 变量求值并返回复数。 */
+    int rc = calc_evaluate_impl(expression, mode, zc(0.0), 0, x_value, result,
+                                error_buffer, error_buffer_size);
+    return rc;
+}
+
+/* 自适应 Simpson 积分（复数被积函数：实/虚部分别积分）。
+ * fa/fm/fb 为函数在 a、(a+b)/2、b 处的值。 */
+static int sinteg_adapt(const char *expression, CalcAngleMode mode,
+                        double a, double b,
+                        CalcComplex fa, CalcComplex fm, CalcComplex fb,
+                        CalcComplex *out, double eps, int depth) {
+    double m = 0.5 * (a + b);
+    double lm = 0.5 * (a + m);
+    double rm = 0.5 * (m + b);
+    CalcComplex flm, frm;
+    if (calc_eval_fx(expression, mode, lm, &flm) != 0) return -1;
+    if (calc_eval_fx(expression, mode, rm, &frm) != 0) return -1;
+
+    double h = (b - a);
+    CalcComplex whole;
+    whole.re = h / 6.0 * (fa.re + 4.0 * fm.re + fb.re);
+    whole.im = h / 6.0 * (fa.im + 4.0 * fm.im + fb.im);
+
+    CalcComplex left, right, two;
+    double hl = (m - a), hr = (b - m);
+    left.re  = hl / 6.0 * (fa.re + 4.0 * flm.re + fm.re);
+    left.im  = hl / 6.0 * (fa.im + 4.0 * flm.im + fm.im);
+    right.re = hr / 6.0 * (fm.re + 4.0 * frm.re + fb.re);
+    right.im = hr / 6.0 * (fm.im + 4.0 * frm.im + fb.im);
+    two.re = left.re + right.re;
+    two.im = left.im + right.im;
+
+    double err = fabs(two.re - whole.re) + fabs(two.im - whole.im);
+    if (depth <= 0 || err < 15.0 * eps) {
+        out->re = two.re + (two.re - whole.re) / 15.0;
+        out->im = two.im + (two.im - whole.im) / 15.0;
+        return 0;
+    }
+    CalcComplex lr, rr;
+    if (sinteg_adapt(expression, mode, a, m, fa, flm, fm, &lr,
+                     eps * 0.5, depth - 1) != 0) return -1;
+    if (sinteg_adapt(expression, mode, m, b, fm, frm, fb, &rr,
+                     eps * 0.5, depth - 1) != 0) return -1;
+    out->re = lr.re + rr.re;
+    out->im = lr.im + rr.im;
+    return 0;
+}
+
+/* 数值定积分：∫[a,b] f(x) dx。 */
+int calc_ninteg(const char *expression,
+                CalcAngleMode mode,
+                double a,
+                double b,
+                CalcComplex *result,
+                char *error_buffer,
+                size_t error_buffer_size) {
+    if (expression == NULL || result == NULL) return -1;
+    if (a == b) { result->re = 0.0; result->im = 0.0; return 0; }
+    CalcComplex fa, fm, fb;
+    double m = 0.5 * (a + b);
+    if (calc_eval_fx(expression, mode, a, &fa) != 0 ||
+        calc_eval_fx(expression, mode, m, &fm) != 0 ||
+        calc_eval_fx(expression, mode, b, &fb) != 0) {
+        if (error_buffer != NULL && error_buffer_size > 0) {
+            snprintf(error_buffer, error_buffer_size,
+                     "数值积分失败：区间内存在无法求值的点（定义域错误）\n");
+        }
+        return -1;
+    }
+    if (sinteg_adapt(expression, mode, a, b, fa, fm, fb, result,
+                     1e-10, 24) != 0) {
+        if (error_buffer != NULL && error_buffer_size > 0) {
+            snprintf(error_buffer, error_buffer_size,
+                     "数值积分失败：无法达到要求的精度\n");
+        }
+        return -1;
+    }
+    return 0;
+}
+
+/* 数值导数 f'(x0)：四阶中心差分。 */
+int calc_nderiv(const char *expression,
+                CalcAngleMode mode,
+                double x0,
+                CalcComplex *result,
+                char *error_buffer,
+                size_t error_buffer_size) {
+    if (expression == NULL || result == NULL) return -1;
+    double h = (1.0 + fabs(x0)) * 1e-3;
+    CalcComplex a, b, c, d;
+    if (calc_eval_fx(expression, mode, x0 - 2.0 * h, &a) != 0 ||
+        calc_eval_fx(expression, mode, x0 - h, &b) != 0 ||
+        calc_eval_fx(expression, mode, x0 + h, &c) != 0 ||
+        calc_eval_fx(expression, mode, x0 + 2.0 * h, &d) != 0) {
+        if (error_buffer != NULL && error_buffer_size > 0) {
+            snprintf(error_buffer, error_buffer_size,
+                     "数值求导失败：附近存在无法求值的点（定义域错误）\n");
+        }
+        return -1;
+    }
+    double id = 12.0 * h;
+    result->re = (a.re - 8.0 * b.re + 8.0 * c.re - d.re) / id;
+    result->im = (a.im - 8.0 * b.im + 8.0 * c.im - d.im) / id;
+    return 0;
+}
+
+/* 在 [a,b] 内用二分法找 f(x)=0 的实根（取实部）。 */
+int calc_root(const char *expression,
+              CalcAngleMode mode,
+              double a,
+              double b,
+              double *result,
+              char *error_buffer,
+              size_t error_buffer_size) {
+    if (expression == NULL || result == NULL) return -1;
+    CalcComplex fa, fb;
+    if (calc_eval_fx(expression, mode, a, &fa) != 0 ||
+        calc_eval_fx(expression, mode, b, &fb) != 0) {
+        if (error_buffer != NULL && error_buffer_size > 0) {
+            snprintf(error_buffer, error_buffer_size,
+                     "求根失败：区间端点处无法求值\n");
+        }
+        return -1;
+    }
+    double xa = a, xb = b;
+    double fa_r = fa.re, fb_r = fb.re;
+    if (fa_r * fb_r > 0.0) {
+        if (error_buffer != NULL && error_buffer_size > 0) {
+            snprintf(error_buffer, error_buffer_size,
+                     "求根失败：两端点函数值同号，[%.6g,%.6g] 内不能保证有实根\n",
+                     a, b);
+        }
+        return -1;
+    }
+    for (int i = 0; i < 200; i++) {
+        double mid = 0.5 * (xa + xb);
+        CalcComplex fmid;
+        if (calc_eval_fx(expression, mode, mid, &fmid) != 0) {
+            if (error_buffer != NULL && error_buffer_size > 0) {
+                snprintf(error_buffer, error_buffer_size,
+                         "求根失败：迭代中遇到无法求值的点\n");
+            }
+            return -1;
+        }
+        double fm = fmid.re;
+        if (fm == 0.0 || (xb - xa) < 1e-14 * (1.0 + fabs(mid))) {
+            *result = mid;
+            return 0;
+        }
+        if (fa_r * fm < 0.0) { xb = mid; }
+        else { xa = mid; fa_r = fm; }
+    }
+    *result = 0.5 * (xa + xb);
+    return 0;
+}
+
+/* 求和：Σ_{i=a}^{b} f(i)，i 以 x 传入（实整数自变量）。 */
+int calc_sum(const char *expression,
+             CalcAngleMode mode,
+             long a,
+             long b,
+             CalcComplex *result,
+             char *error_buffer,
+             size_t error_buffer_size) {
+    if (expression == NULL || result == NULL) return -1;
+    CalcComplex acc = { 0, 0 };
+    for (long i = a; i <= b; i++) {
+        CalcComplex v;
+        if (calc_eval_fx(expression, mode, (double)i, &v) != 0) {
+            if (error_buffer != NULL && error_buffer_size > 0) {
+                snprintf(error_buffer, error_buffer_size,
+                         "求和失败：i=%ld 处无法求值（定义域错误）\n", i);
+            }
+            return -1;
+        }
+        acc.re += v.re;
+        acc.im += v.im;
+    }
+    *result = acc;
+    return 0;
+}
+
+/* 连乘：Π_{i=a}^{b} f(i)，i 以 x 传入。 */
+int calc_prod(const char *expression,
+              CalcAngleMode mode,
+              long a,
+              long b,
+              CalcComplex *result,
+              char *error_buffer,
+              size_t error_buffer_size) {
+    if (expression == NULL || result == NULL) return -1;
+    CalcComplex acc = { 1, 0 };
+    for (long i = a; i <= b; i++) {
+        CalcComplex v;
+        if (calc_eval_fx(expression, mode, (double)i, &v) != 0) {
+            if (error_buffer != NULL && error_buffer_size > 0) {
+                snprintf(error_buffer, error_buffer_size,
+                         "连乘失败：i=%ld 处无法求值（定义域错误）\n", i);
+            }
+            return -1;
+        }
+        double re = acc.re * v.re - acc.im * v.im;
+        double im = acc.re * v.im + acc.im * v.re;
+        acc.re = re;
+        acc.im = im;
+    }
+    *result = acc;
+    return 0;
 }

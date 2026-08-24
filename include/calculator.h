@@ -95,6 +95,63 @@ int calc_evaluate_complex(const char *expression,
                           size_t error_buffer_size);
 
 /* ------------------------------------------------------------------ */
+/* 数值工具（v6.0）：以下函数把表达式看成以 x 为自变量的函数 f(x)。       */
+/* 表达式内部可用字符 x 代表自变量，例如 "x^2 + 1"、"sin(x)"。           */
+/* ------------------------------------------------------------------ */
+
+/* 计算 f(x) 在给定 x 处的值（x 为实自变量，结果允许为复数）。 */
+int calc_evaluate_x(const char *expression,
+                    CalcAngleMode mode,
+                    double x_value,
+                    CalcComplex *result,
+                    char *error_buffer,
+                    size_t error_buffer_size);
+
+/* 数值定积分：∫[a,b] f(x) dx（自适应 Gauss–Legendre 求积）。 */
+int calc_ninteg(const char *expression,
+                CalcAngleMode mode,
+                double a,
+                double b,
+                CalcComplex *result,
+                char *error_buffer,
+                size_t error_buffer_size);
+
+/* 数值导数 f'(x0)（四阶中心差分；返回复数，通常虚部≈0）。 */
+int calc_nderiv(const char *expression,
+                CalcAngleMode mode,
+                double x0,
+                CalcComplex *result,
+                char *error_buffer,
+                size_t error_buffer_size);
+
+/* 在 [a,b] 内找 f(x)=0 的实根（二分法，需端点异号）。 */
+int calc_root(const char *expression,
+              CalcAngleMode mode,
+              double a,
+              double b,
+              double *result,
+              char *error_buffer,
+              size_t error_buffer_size);
+
+/* 求和：Σ_{i=a}^{b} f(i)（i 以 x 传入）。 */
+int calc_sum(const char *expression,
+             CalcAngleMode mode,
+             long a,
+             long b,
+             CalcComplex *result,
+             char *error_buffer,
+             size_t error_buffer_size);
+
+/* 连乘：Π_{i=a}^{b} f(i)（i 以 x 传入）。 */
+int calc_prod(const char *expression,
+              CalcAngleMode mode,
+              long a,
+              long b,
+              CalcComplex *result,
+              char *error_buffer,
+              size_t error_buffer_size);
+
+/* ------------------------------------------------------------------ */
 /* 插件式函数注册表：每个算法库向引擎注册可被表达式调用的函数。          */
 /* 这样各算法(矩阵/复数/…)编译成独立的动态库( .so / .dll )，互不依赖，  */
 /* 单独修复某个算法时不影响其它部分。                                  */

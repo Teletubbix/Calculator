@@ -3,7 +3,7 @@
  * 本程序以 GNU Affero General Public License v3.0 传播；详见 LICENSE。
  */
 /*
- * Calculator v5.0.0 —— GTK4 图形界面（跨平台，可交叉编译）
+ * Calculator v6.0.0 —— GTK4 图形界面（跨平台，可交叉编译）
  * 主题系统：多套高对比、二次元风格主题（樱/海/薰衣草/薄荷/黄昏）。
  * 主题与窗口分辨率、键位大小、字体、配色深度绑定（系统工程）。
  * 布局统一为有序的 6 列分组（控制行/函数两行/数字运算符/底部）。
@@ -18,8 +18,18 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <limits.h>
+#include <unistd.h>
+#endif
 
-#define GUI_VERSION "5.0.0"
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#define GUI_VERSION "6.0.0"
 
 /* —— 原神主题（渐变背景，数字/函数=浅底深字，运算符/等号=深底白字，保证高对比）—— */
 typedef struct {
@@ -34,6 +44,7 @@ typedef struct {
     const char *clear_bg, *clear_fg;      /* 清除 —— 中深底白字 */
     const char *mode_bg, *mode_fg;        /* 模式 —— 深底白字 */
     int win_w, win_h, key_w, key_h, font, radius;
+    const char *bg_img;                    /* 可选背景图（绝对/相对路径，存在才叠加） */
 } Theme;
 
 static const Theme THEMES[] = {
@@ -41,27 +52,37 @@ static const Theme THEMES[] = {
     { "原神·蒙德 风", "#5795a8", "#cde6ec", "#eef6f8", "#1f3b40", "#2b8397", "#8ab9c9",
       "#ffffff", "#1f3b40", "#ffffff", "#1f3b40", "#d9edf0", "#17343a",
       "#1f6b7d", "#ffffff", "#125563", "#ffffff", "#e07a5f", "#ffffff",
-      "#2b8397", "#ffffff", 440, 560, 62, 52, 16, 14 },
+      "#2b8397", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/mondstadt.png" },
     /* 璃月 · 岩（金） */
     { "原神·璃月 岩", "#c9a96a", "#efe0c0", "#fbf5e8", "#3a2c14", "#b8860b", "#d8bd8a",
       "#ffffff", "#3a2c14", "#ffffff", "#3a2c14", "#f0e6cc", "#3a2c14",
       "#8a6d3b", "#ffffff", "#6b5025", "#ffffff", "#b5651f", "#ffffff",
-      "#96743d", "#ffffff", 440, 560, 62, 52, 16, 14 },
+      "#96743d", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/liyue.png" },
     /* 稻妻 · 雷（紫） */
     { "原神·稻妻 雷", "#6a5a9e", "#c3b3ea", "#f4f0fb", "#241a3d", "#7c3aed", "#b9a6e8",
       "#ffffff", "#241a3d", "#ffffff", "#241a3d", "#e5dbf5", "#241a3d",
       "#5e35b1", "#ffffff", "#4527a0", "#ffffff", "#8e3ae8", "#ffffff",
-      "#6a1db9", "#ffffff", 440, 560, 62, 52, 16, 14 },
+      "#6a1db9", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/inazuma.png" },
     /* 须弥 · 草（绿） */
     { "原神·须弥 草", "#4a9e6b", "#c2e6cf", "#eefaf2", "#123726", "#1f9d55", "#9fd4b4",
       "#ffffff", "#123726", "#ffffff", "#123726", "#dff2e5", "#123726",
       "#15803d", "#ffffff", "#0f6a33", "#ffffff", "#65a30d", "#ffffff",
-      "#0e7a3d", "#ffffff", 440, 560, 62, 52, 16, 14 },
+      "#0e7a3d", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/sumeru.png" },
     /* 枫丹 · 水（蓝） */
     { "原神·枫丹 水", "#4a90c9", "#bcd8ec", "#eaf4fb", "#12283c", "#1e90d6", "#a8cbe6",
       "#ffffff", "#12283c", "#ffffff", "#12283c", "#dcecf7", "#12283c",
       "#1565c0", "#ffffff", "#0d47a1", "#ffffff", "#e5731f", "#ffffff",
-      "#1a73b8", "#ffffff", 440, 560, 62, 52, 16, 14 },
+      "#1a73b8", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/fontaine.png" },
+    /* 纳塔 · 火（橙红，v6.0 新增） */
+    { "原神·纳塔 火", "#c65b3a", "#f3d0a8", "#fdf3e4", "#3a1d10", "#d9541e", "#f0b48a",
+      "#ffffff", "#3a1d10", "#ffffff", "#3a1d10", "#f8e0c8", "#3a1d10",
+      "#b23a1f", "#ffffff", "#8f2a12", "#ffffff", "#d97706", "#ffffff",
+      "#b03a1a", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/natlan.png" },
+    /* 至冬 · 冰（冰蓝白，v6.0 新增） */
+    { "原神·至冬 冰", "#5b7ba3", "#dbe7f5", "#f2f7fc", "#14273c", "#2f7fb8", "#b3cee6",
+      "#ffffff", "#14273c", "#ffffff", "#14273c", "#e2eef9", "#14273c",
+      "#22557f", "#ffffff", "#143a5c", "#ffffff", "#4a9dd8", "#ffffff",
+      "#1f5680", "#ffffff", 440, 560, 62, 52, 16, 14, "themes/img/snezhnaya.png" },
 };
 #define NTHEMES ((int)(sizeof THEMES / sizeof THEMES[0]))
 
@@ -71,7 +92,11 @@ typedef struct {
     GtkWidget *result;
     GtkWidget *mode_btn;
     GtkWidget *theme_btn;
+    GtkWidget *polar_btn;
+    GtkWidget *nota_btn;
     int theme_idx;
+    int polar;        /* 0=直角坐标(a+bj)，1=极坐标(r∠θ) 显示 */
+    int notation;     /* 0=自动 1=科学计数 2=工程计数 */
     CalcComplex ans;
     int has_ans;
     CalcAngleMode mode;
@@ -79,11 +104,63 @@ typedef struct {
 
 static AppState g_state;
 
-/* 根据主题生成 CSS 并应用（分辨率/键位/配色绑定主题） */
+static char g_exe_dir[1024];
+
+/* 计算可执行文件所在目录（跨平台），供解析主题背景图使用。 */
+static void resolve_exe_dir(void) {
+    char tmp[1024];
+#ifdef _WIN32
+    DWORD n = GetModuleFileNameA(NULL, tmp, (DWORD)sizeof(tmp));
+    if (n == 0 || n >= sizeof(tmp)) { g_exe_dir[0] = '\0'; return; }
+#else
+    ssize_t n = readlink("/proc/self/exe", tmp, sizeof(tmp) - 1);
+    if (n <= 0) { g_exe_dir[0] = '\0'; return; }
+    tmp[n] = '\0';
+#endif
+    char *slash = strrchr(tmp, '/');
+    char *bslash = strrchr(tmp, '\\');
+    if (bslash && (!slash || bslash > slash)) slash = bslash;
+    if (slash) *slash = '\0';
+    snprintf(g_exe_dir, sizeof(g_exe_dir), "%s", tmp);
+}
+
+/* 解析主题背景图：若 rel 指定的文件存在，返回 1 并把绝对/相对路径写入 out。
+ * 依次尝试：相对 cwd、可执行文件同级、可执行文件/themes/img/<basename>。 */
+static int asset_path(const char *rel, char *out, size_t sz) {
+    char cand[1024];
+    if (rel == NULL || rel[0] == '\0') { out[0] = '\0'; return 0; }
+    if (g_file_test(rel, G_FILE_TEST_IS_REGULAR)) { snprintf(out, sz, "%s", rel); return 1; }
+    const char *base = strrchr(rel, '/');
+    if (!base) base = strrchr(rel, '\\');
+    base = base ? base + 1 : rel;
+    if (g_exe_dir[0]) {
+        snprintf(cand, sizeof(cand), "%s/%s", g_exe_dir, rel);
+        if (g_file_test(cand, G_FILE_TEST_IS_REGULAR)) { snprintf(out, sz, "%s", cand); return 1; }
+        snprintf(cand, sizeof(cand), "%s/themes/img/%s", g_exe_dir, base);
+        if (g_file_test(cand, G_FILE_TEST_IS_REGULAR)) { snprintf(out, sz, "%s", cand); return 1; }
+    }
+    snprintf(out, sz, "%s", rel);
+    return 0;
+}
+
+/* 根据主题生成 CSS 并应用（分辨率/键位/配色绑定主题）。
+ * v6.0：若主题指定了存在的背景图，则叠加在渐变之上。 */
 static void apply_theme(const Theme *t) {
-    char css[2400];
+    char css[2600];
+    char winrule[1200];
+    char img[1024];
+    if (t->bg_img != NULL && asset_path(t->bg_img, img, sizeof(img))) {
+        snprintf(winrule, sizeof(winrule),
+                 "window { background-image: url(\"%s\"), linear-gradient(160deg, %s, %s);"
+                 " background-size: cover, auto; background-position: center, center; }\n",
+                 img, t->win_grad1, t->win_grad2);
+    } else {
+        snprintf(winrule, sizeof(winrule),
+                 "window { background-image: linear-gradient(160deg, %s, %s); }\n",
+                 t->win_grad1, t->win_grad2);
+    }
     snprintf(css, sizeof(css),
-        "window { background-image: linear-gradient(160deg, %s, %s); }\n"
+        "%s"
         "#display { background-color: %s; color: %s; font-family: \"Consolas\",\"DejaVu Sans Mono\",monospace;"
         "  font-size: %dpx; padding: 12px 14px; border-radius: %dpx; border: 1px solid %s; min-height: 40px; }\n"
         "#result { color: %s; font-size: 15px; font-weight: 600; padding: 4px 8px; min-height: 20px; }\n"
@@ -97,7 +174,7 @@ static void apply_theme(const Theme *t) {
         "button.equals { background-color: %s; color: %s; }\n"
         "button.clear { background-color: %s; color: %s; }\n"
         "button.mode { background-color: %s; color: %s; }\n",
-        t->win_grad1, t->win_grad2,
+        winrule,
         t->display_bg, t->display_fg, t->font + 6, t->radius, t->accent,
         t->result_fg, t->key_w, t->key_h, t->font, t->radius,
         t->btn_bg, t->btn_fg, t->digit_bg, t->digit_fg, t->fn_bg, t->fn_fg,
@@ -141,6 +218,60 @@ static void on_backspace(GtkButton *button, gpointer data) {
     gtk_widget_grab_focus(g_state.entry);
 }
 
+/* 数值格式化：auto / 科学计数(e) / 工程计数(k M G m µ n …) */
+static void fmt_number(double v, int notation, char *out, size_t sz) {
+    if (!isfinite(v)) { snprintf(out, sz, "%.15g", v); return; }
+    if (notation == 1) { snprintf(out, sz, "%.15e", v); return; }   /* 科学计数 */
+    if (notation == 2) {                                             /* 工程计数 */
+        if (v == 0) { snprintf(out, sz, "0"); return; }
+        double a = fabs(v);
+        int e = (int)floor(log10(a));
+        int e3 = ((e % 3) + 3) % 3;      /* 归一化到 [0,3) 的余数 */
+        int expo = e - e3;
+        double mant = v / pow(10.0, expo);
+        static const char *const pre[] = { "", "k", "M", "G", "T", "P", "E" };
+        static const char *const neg[] = { "", "m", "\xc2\xb5", "n", "p", "f", "a" };
+        const char *suffix;
+        if (expo >= 0) { suffix = (expo/3 < (int)(sizeof(pre)/sizeof(pre[0]))) ? pre[expo/3] : "e"; }
+        else           { suffix = (-expo/3 < (int)(sizeof(neg)/sizeof(neg[0]))) ? neg[(-expo)/3] : "e"; }
+        if (strcmp(suffix,"e")==0) { snprintf(out, sz, "%.15e", v); return; }
+        snprintf(out, sz, "%.12g%s", mant, suffix);
+        return;
+    }
+    snprintf(out, sz, "%.15g", v);       /* 自动 */
+}
+
+/* 组装结果显示字符串，遵循 polar / notation / mode 状态 */
+static void show_result(void) {
+    CalcComplex z = g_state.ans;
+    char out[192];
+    double tol = 1e-12 * (1.0 + fabs(z.re) + fabs(z.im));
+
+    if (g_state.polar) {
+        double r = hypot(z.re, z.im);
+        double th = atan2(z.im, z.re);
+        double th_disp = th;
+        const char *unit;
+        if (g_state.mode == CALC_MODE_DEG)     { th_disp = th * 180.0 / M_PI; unit = "\xc2\xb0"; }
+        else if (g_state.mode == CALC_MODE_GRAD){ th_disp = th * 200.0 / M_PI; unit = "g"; }
+        else unit = "rad";
+        char rs[64], ts[64];
+        fmt_number(r, g_state.notation, rs, sizeof(rs));
+        fmt_number(th_disp, g_state.notation, ts, sizeof(ts));
+        snprintf(out, sizeof(out), "= %s \xe2\x88\xa0 %s%s", rs, ts, unit);
+    } else {
+        char re[64], im[64];
+        fmt_number(z.re, g_state.notation, re, sizeof(re));
+        if (fabs(z.im) < tol) {
+            snprintf(out, sizeof(out), "= %s", re);
+        } else {
+            fmt_number(fabs(z.im), g_state.notation, im, sizeof(im));
+            snprintf(out, sizeof(out), "= %s %s %sj", re, (z.im < 0.0 ? "-" : "+"), im);
+        }
+    }
+    gtk_label_set_label(GTK_LABEL(g_state.result), out);
+}
+
 static void do_evaluate(void) {
     const char *expr = gtk_editable_get_text(GTK_EDITABLE(g_state.entry));
     CalcComplex result = {0, 0};
@@ -150,12 +281,7 @@ static void do_evaluate(void) {
     if (rc != 0) { gtk_label_set_label(GTK_LABEL(g_state.result), error); return; }
     g_state.ans = result;
     g_state.has_ans = 1;
-    double tol = 1e-12 * (1.0 + fabs(result.re) + fabs(result.im));
-    char out[160];
-    if (fabs(result.im) < tol) snprintf(out, sizeof(out), "= %.15g", result.re);
-    else snprintf(out, sizeof(out), "= %.15g %s %.15gj", result.re,
-                  (result.im < 0.0 ? "-" : "+"), fabs(result.im));
-    gtk_label_set_label(GTK_LABEL(g_state.result), out);
+    show_result();
 }
 
 static void on_equals(GtkButton *button, gpointer data) { (void)button; (void)data; do_evaluate(); }
@@ -165,6 +291,25 @@ static void on_mode_toggle(GtkButton *button, gpointer data) {
     (void)data;
     g_state.mode = (g_state.mode == CALC_MODE_DEG) ? CALC_MODE_RAD : CALC_MODE_DEG;
     gtk_button_set_label(button, (g_state.mode == CALC_MODE_DEG) ? "DEG" : "RAD");
+    if (g_state.has_ans) show_result();
+    gtk_widget_grab_focus(g_state.entry);
+}
+
+static void on_polar_toggle(GtkButton *button, gpointer data) {
+    (void)data;
+    g_state.polar = !g_state.polar;
+    gtk_button_set_label(button, g_state.polar ? "R∠θ" : "a+bj");
+    if (g_state.has_ans) show_result();
+    gtk_widget_grab_focus(g_state.entry);
+}
+
+static void on_nota_toggle(GtkButton *button, gpointer data) {
+    (void)data;
+    g_state.notation = (g_state.notation + 1) % 3;
+    const char *lbl = (g_state.notation == 0) ? "标准" :
+                      (g_state.notation == 1) ? "科学" : "工程";
+    gtk_button_set_label(button, lbl);
+    if (g_state.has_ans) show_result();
     gtk_widget_grab_focus(g_state.entry);
 }
 
@@ -192,6 +337,7 @@ static void activate(GtkApplication *app, gpointer user_data) {
     memset(&g_state, 0, sizeof(g_state));
     g_state.mode = CALC_MODE_RAD;
     g_state.theme_idx = 0;
+    resolve_exe_dir();
 
     GtkWidget *window = gtk_application_window_new(app);
     g_state.window = window;
@@ -283,6 +429,21 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_set_hexpand(g_state.theme_btn, TRUE);
     gtk_widget_set_vexpand(g_state.theme_btn, TRUE);
     gtk_grid_attach(GTK_GRID(grid), g_state.theme_btn, 5, 6, 1, 1);
+
+    /* 显示格式切换行（v6.0）：极坐标/直角坐标 + 记数法 */
+    g_state.polar_btn = gtk_button_new_with_label("a+bj");
+    gtk_widget_add_css_class(g_state.polar_btn, "mode");
+    g_signal_connect(g_state.polar_btn, "clicked", G_CALLBACK(on_polar_toggle), NULL);
+    gtk_widget_set_hexpand(g_state.polar_btn, TRUE);
+    gtk_widget_set_vexpand(g_state.polar_btn, TRUE);
+    gtk_grid_attach(GTK_GRID(grid), g_state.polar_btn, 0, 7, 3, 1);
+
+    g_state.nota_btn = gtk_button_new_with_label("标准");
+    gtk_widget_add_css_class(g_state.nota_btn, "mode");
+    g_signal_connect(g_state.nota_btn, "clicked", G_CALLBACK(on_nota_toggle), NULL);
+    gtk_widget_set_hexpand(g_state.nota_btn, TRUE);
+    gtk_widget_set_vexpand(g_state.nota_btn, TRUE);
+    gtk_grid_attach(GTK_GRID(grid), g_state.nota_btn, 3, 7, 3, 1);
 
     gtk_window_set_child(GTK_WINDOW(window), box);
     apply_theme(&THEMES[0]);

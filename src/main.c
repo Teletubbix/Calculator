@@ -35,7 +35,7 @@
 #endif
 
 #define APP_NAME "Calculator"
-#define APP_VERSION "5.0.0"
+#define APP_VERSION "6.0.0"
 #define MAX_LINE 1024
 #define PRECISION_AUTO (-1)
 
@@ -175,6 +175,12 @@ static void print_help(void) {
         "   precision auto   恢复自动格式（%%）\n"
         "   mode deg/rad/grad 切换角度制（默认弧度制）\n"
         "   convert V from to 单位换算，例如 convert 1 km m、convert 0 dBm mW\n"
+        "   数值（v6.0，表达式用 x 作自变量）：\n"
+        "     integrate a b 表达式   ∫[a,b] f(x) dx，如 integrate 0 1 x^2\n"
+        "     nderiv    x0 表达式     f'(x0)，如 nderiv 3 x^2\n"
+        "     root      a b 表达式    在 [a,b] 内求 f(x)=0 的根，如 root 0 5 x^2-4\n"
+        "     sum       a b 表达式     Σ_{i=a}^{b} f(i)，如 sum 1 5 x^2\n"
+        "     product   a b 表达式     Π_{i=a}^{b} f(i)，如 product 1 5 x\n"
         "   help             显示本帮助\n"
         "   history           查看计算历史（上/下箭头亦可翻看）\n"
         "   clear             清空历史\n"
@@ -356,6 +362,92 @@ static int handle_convert_command(Session *s, const char *line) {
         printf("[ERROR] %s\n", err);
     } else {
         printf("= %g %s\n", out, to);
+    }
+    return 1;
+}
+
+/*
+ * 数值命令（v6.0）：把表达式看成以 x 为自变量的函数 f(x)。
+ *   integrate a b expr   数值定积分 ∫[a,b] f(x) dx
+ *   nderiv    x0 expr    数值导数 f'(x0)
+ *   root      a b expr   在 [a,b] 内求 f(x)=0 的实根
+ *   sum       a b expr   求和 Σ_{i=a}^{b} f(i)
+ *   product   a b expr   连乘 Π_{i=a}^{b} f(i)
+ * 返回：1 表示已处理，0 表示不是数值命令。
+ * 注意：expr 内所有 x 均按自变量处理，例如 "x^2+1"。
+ */
+static int handle_numerics_command(Session *s, const char *line) {
+    const char *p = line;
+    /* 命令名（可带前缀缩写），按开头匹配；后面必须紧跟空白或行尾。 */
+    static const char *const names[] = {
+        "integrate", "integ", "nderiv", "root", "sum", "product", "prod"
+    };
+    int idx = -1;
+    for (int i = 0; i < (int)(sizeof(names) / sizeof(names[0])); i++) {
+        size_t len = strlen(names[i]);
+        if (strncmp(p, names[i], len) == 0 &&
+            (p[len] == '\0' || isspace((unsigned char)p[len]))) {
+            idx = i;
+            p += len;
+            break;
+        }
+    }
+    if (idx < 0) return 0;
+    int want_deriv = (strcmp(names[idx], "nderiv") == 0);
+    while (isspace((unsigned char)*p)) p++;
+
+    double a = 0.0, b = 1.0;
+    int n_parsed = 0;
+    if (want_deriv) {
+        char *end = NULL;
+        a = strtod(p, &end);
+        p = end;
+        n_parsed = 1;
+    } else {
+        char *end = NULL;
+        a = strtod(p, &end);
+        p = end;
+        b = strtod(p, &end);
+        p = end;
+        n_parsed = 2;
+    }
+    while (isspace((unsigned char)*p)) p++;
+    const char *expr = p;
+    if (*expr == '\0' || n_parsed == 0) {
+        printf("用法示例：\n"
+               "  integrate 0 1 x^2\n"
+               "  nderiv     3 x^2\n"
+               "  root       0 5 x^2-4\n"
+               "  sum        1 5 x^2\n"
+               "  product    1 5 x\n");
+        return 1;
+    }
+
+    CalcComplex result = {0, 0};
+    char err[512] = {0};
+    int rc = -1;
+    if (strcmp(names[idx], "integrate") == 0 || strcmp(names[idx], "integ") == 0) {
+        rc = calc_ninteg(expr, s->mode, a, b, &result, err, sizeof(err));
+    } else if (want_deriv) {
+        rc = calc_nderiv(expr, s->mode, a, &result, err, sizeof(err));
+    } else if (strcmp(names[idx], "root") == 0) {
+        double root = 0.0;
+        rc = calc_root(expr, s->mode, a, b, &root, err, sizeof(err));
+        if (rc == 0) {
+            printf("= %g\n", root);
+            return 1;
+        }
+    } else if (strcmp(names[idx], "sum") == 0) {
+        rc = calc_sum(expr, s->mode, (long)a, (long)b, &result, err, sizeof(err));
+    } else { /* product / prod */
+        rc = calc_prod(expr, s->mode, (long)a, (long)b, &result, err, sizeof(err));
+    }
+    if (rc != 0) {
+        printf("[ERROR] %s", err);
+    } else {
+        char out[160];
+        format_complex(result, s->precision, out, sizeof(out));
+        printf("= %s\n", out);
     }
     return 1;
 }
@@ -544,6 +636,10 @@ static int run_repl(void) {
             continue;
         }
         if (handle_convert_command(&session, input)) {
+            print_prompt();
+            continue;
+        }
+        if (handle_numerics_command(&session, input)) {
             print_prompt();
             continue;
         }

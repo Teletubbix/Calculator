@@ -128,6 +128,82 @@ static void expect_complex_mode(const char *expr, CalcAngleMode mode, double re,
     }
 }
 
+/* —— v6.0 数值工具测试辅助 —— */
+static void expect_eval_x(const char *expr, double x, double re, double im, double tolerance) {
+    CalcComplex result = {0, 0};
+    char error[512] = {0};
+    int rc = calc_evaluate_x(expr, CALC_MODE_RAD, x, &result, error, sizeof(error));
+    if (rc != 0 || !near(result.re, re, tolerance) || !near(result.im, im, tolerance)) {
+        printf("FAIL  f(%g):%s 期望=%g%+gi  实际=%g%+gi  错误=%s\n",
+               x, expr, re, im, result.re, result.im, rc != 0 ? error : "数值不符");
+        failures++;
+    } else {
+        printf("PASS  f(%g):%s = %g%+gi\n", x, expr, result.re, result.im);
+    }
+}
+
+static void expect_integ(const char *expr, double a, double b, double re, double im, double tolerance) {
+    CalcComplex result = {0, 0};
+    char error[512] = {0};
+    int rc = calc_ninteg(expr, CALC_MODE_RAD, a, b, &result, error, sizeof(error));
+    if (rc != 0 || !near(result.re, re, tolerance) || !near(result.im, im, tolerance)) {
+        printf("FAIL  ∫[%g,%g]%s 期望=%g%+gi  实际=%g%+gi  错误=%s\n",
+               a, b, expr, re, im, result.re, result.im, rc != 0 ? error : "数值不符");
+        failures++;
+    } else {
+        printf("PASS  ∫[%g,%g]%s = %g%+gi\n", a, b, expr, result.re, result.im);
+    }
+}
+
+static void expect_deriv(const char *expr, double x0, double re, double tolerance) {
+    CalcComplex result = {0, 0};
+    char error[512] = {0};
+    int rc = calc_nderiv(expr, CALC_MODE_RAD, x0, &result, error, sizeof(error));
+    if (rc != 0 || !near(result.re, re, tolerance) || !near(result.im, 0, tolerance)) {
+        printf("FAIL  f'(%g):%s 期望=%g  实际=%g  错误=%s\n",
+               x0, expr, re, result.re, rc != 0 ? error : "数值不符");
+        failures++;
+    } else {
+        printf("PASS  f'(%g):%s = %g\n", x0, expr, result.re);
+    }
+}
+
+static void expect_root(const char *expr, double a, double b, double expected, double tolerance) {
+    double result = 0.0; char error[512] = {0};
+    int rc = calc_root(expr, CALC_MODE_RAD, a, b, &result, error, sizeof(error));
+    if (rc != 0 || !near(result, expected, tolerance)) {
+        printf("FAIL  root[%g,%g]:%s 期望=%g  实际=%g  错误=%s\n",
+               a, b, expr, expected, result, rc != 0 ? error : "数值不符");
+        failures++;
+    } else {
+        printf("PASS  root[%g,%g]:%s = %g\n", a, b, expr, result);
+    }
+}
+
+static void expect_sum(const char *expr, long a, long b, double expected, double tolerance) {
+    CalcComplex result = {0, 0}; char error[512] = {0};
+    int rc = calc_sum(expr, CALC_MODE_RAD, a, b, &result, error, sizeof(error));
+    if (rc != 0 || !near(result.re, expected, tolerance) || !near(result.im, 0, tolerance)) {
+        printf("FAIL  Σ[%ld..%ld]:%s 期望=%g  实际=%g  错误=%s\n",
+               a, b, expr, expected, result.re, rc != 0 ? error : "数值不符");
+        failures++;
+    } else {
+        printf("PASS  Σ[%ld..%ld]:%s = %g\n", a, b, expr, result.re);
+    }
+}
+
+static void expect_prod(const char *expr, long a, long b, double expected, double tolerance) {
+    CalcComplex result = {0, 0}; char error[512] = {0};
+    int rc = calc_prod(expr, CALC_MODE_RAD, a, b, &result, error, sizeof(error));
+    if (rc != 0 || !near(result.re, expected, tolerance) || !near(result.im, 0, tolerance)) {
+        printf("FAIL  Π[%ld..%ld]:%s 期望=%g  实际=%g  错误=%s\n",
+               a, b, expr, expected, result.re, rc != 0 ? error : "数值不符");
+        failures++;
+    } else {
+        printf("PASS  Π[%ld..%ld]:%s = %g\n", a, b, expr, result.re);
+    }
+}
+
 int main(void) {
     /* 注册算法库（矩阵/复数），这样 det/det/cabs/carg 才能在表达式里生效 */
     size_t n;
@@ -347,6 +423,35 @@ int main(void) {
     expect_value("mw(0)", 1, 1e-9);            /* 0 dBm = 1 mW */
     expect_error("pow2db(0)");
     expect_error("dbm(-5)");
+
+    /* —— v6.0 数值工具：x 变量代入 —— */
+    expect_eval_x("x^2", 3, 9, 0, 1e-9);
+    expect_eval_x("x^2+1", -2, 5, 0, 1e-9);
+    expect_eval_x("sin(x)", 0, 0, 0, 1e-9);
+
+    /* —— v6.0 数值积分 —— */
+    expect_integ("x^2", 0, 1, 1.0/3.0, 0, 1e-8);
+    expect_integ("x^2", 0, 3, 9, 0, 1e-7);
+    expect_integ("sin(x)", 0, M_PI, 2, 0, 1e-8);
+    expect_integ("exp(x)", 0, 1, M_E - 1, 0, 1e-7);
+    expect_integ("2*x+1", 0, 2, 6, 0, 1e-8);      /* x^2 + x 在 [0,2] = 4+2 = 6 */
+
+    /* —— v6.0 数值求导 —— */
+    expect_deriv("x^2", 3, 6, 1e-5);
+    expect_deriv("sin(x)", 0, 1, 1e-5);
+    expect_deriv("x^3", 2, 12, 1e-5);
+    expect_deriv("exp(x)", 1, M_E, 1e-5);
+
+    /* —— v6.0 求根（二分法）—— */
+    expect_root("x^2-4", 0, 5, 2, 1e-9);
+    expect_root("x-1", 0, 3, 1, 1e-9);
+    expect_root("sin(x)", 3, 4, M_PI, 1e-7);
+
+    /* —— v6.0 求和 / 连乘 —— */
+    expect_sum("x", 1, 5, 15, 1e-9);            /* 1+2+3+4+5 */
+    expect_sum("x^2", 1, 5, 55, 1e-9);          /* 1+4+9+16+25 */
+    expect_prod("x", 1, 5, 120, 1e-9);          /* 1*2*3*4*5 */
+    expect_prod("x", 1, 4, 24, 1e-9);
 
     printf("\n测试结束：%s\n", failures == 0 ? "全部通过" : "存在失败用例");
     return failures == 0 ? 0 : 1;

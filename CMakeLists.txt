@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Calculator VERSION 5.0.0 LANGUAGES C)
+project(Calculator VERSION 6.0.0 LANGUAGES C)
 
 # —— 编译标准 ——
 set(CMAKE_C_STANDARD 11)
@@ -70,7 +70,7 @@ option(BUILD_TESTING "Build and register unit tests" ON)
 if(BUILD_TESTING)
     enable_testing()
     add_executable(calculator_tests tests/test_calculator.c)
-    target_link_libraries(calculator_tests PRIVATE calc_core calc_matrix calc_complex)
+    target_link_libraries(calculator_tests PRIVATE calc_core calc_units calc_matrix calc_complex calc_db)
     add_test(NAME calculator_tests COMMAND calculator_tests)
 endif()
 
