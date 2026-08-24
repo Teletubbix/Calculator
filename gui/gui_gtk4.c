@@ -3,7 +3,7 @@
  * 本程序以 GNU Affero General Public License v3.0 传播；详见 LICENSE。
  */
 /*
- * Calculator v6.0.4 —— GTK4 图形界面（跨平台，可交叉编译）
+ * Calculator v6.0.5 —— GTK4 图形界面（跨平台，可交叉编译）
  * 主题系统：多套高对比、二次元风格主题（樱/海/薰衣草/薄荷/黄昏）。
  * 主题与窗口分辨率、键位大小、字体、配色深度绑定（系统工程）。
  * 布局统一为有序的 6 列分组（控制行/函数两行/数字运算符/底部）。
@@ -29,7 +29,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define GUI_VERSION "6.0.4"
+#define GUI_VERSION "6.0.5"
 
 /* —— 原神主题（渐变背景，数字/函数=浅底深字，运算符/等号=深底白字，保证高对比）—— */
 typedef struct {
@@ -127,7 +127,7 @@ static void resolve_exe_dir(void) {
 /* 解析主题背景图：若 rel 指定的文件存在，返回 1 并把绝对/相对路径写入 out。
  * 依次尝试：相对 cwd、可执行文件同级、可执行文件/themes/img/<basename>。 */
 static int asset_path(const char *rel, char *out, size_t sz) {
-    char cand[1024];
+    char cand[2048];
     if (rel == NULL || rel[0] == '\0') { out[0] = '\0'; return 0; }
     if (g_file_test(rel, G_FILE_TEST_IS_REGULAR)) { snprintf(out, sz, "%s", rel); return 1; }
     const char *base = strrchr(rel, '/');
@@ -147,7 +147,7 @@ static int asset_path(const char *rel, char *out, size_t sz) {
  * v6.0：若主题指定了存在的背景图，则叠加在渐变之上。
  * v6.0.1：把 Genshin 徽标作为背景暗纹，融入窗口背景。 */
 static void apply_theme(const Theme *t) {
-    char css[3200];
+    char css[8192];
     char winrule[1200];
     char logorule[1400] = "";
     char img[1024];
@@ -194,12 +194,15 @@ static void apply_theme(const Theme *t) {
         t->btn_bg, t->btn_fg, t->digit_bg, t->digit_fg, t->fn_bg, t->fn_fg,
         t->op_bg, t->op_fg, t->equals_bg, t->equals_fg, t->clear_bg, t->clear_fg,
         t->mode_bg, t->mode_fg);
-    GtkCssProvider *p = gtk_css_provider_new();
-    gtk_css_provider_load_from_string(p, css);
-    gtk_style_context_add_provider_for_display(gdk_display_get_default(),
-                                               GTK_STYLE_PROVIDER(p),
-                                               GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-    g_object_unref(p);
+    /* 复用同一个 CSS provider，避免每次切主题都在 display 上积累新 provider */
+    static GtkCssProvider *g_css = NULL;
+    if (g_css == NULL) {
+        g_css = gtk_css_provider_new();
+        gtk_style_context_add_provider_for_display(gdk_display_get_default(),
+                                                   GTK_STYLE_PROVIDER(g_css),
+                                                   GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    }
+    gtk_css_provider_load_from_string(g_css, css);
     gtk_window_set_default_size(GTK_WINDOW(g_state.window), t->win_w, t->win_h);
 }
 
