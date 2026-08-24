@@ -2,6 +2,14 @@
 
 本文件记录每个版本的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [6.0.7](https://github.com/Teletubbix/Calculator/compare/v6.0.6...v6.0.7) (2026-08-24)
+
+
+### Bug Fixes
+
+* 数值命令对非法数字输入提示用法并拒绝(integrate/nderiv/root/sum/product) ([78bd15b](https://github.com/Teletubbix/Calculator/commit/78bd15bd9eac68f4e15d2967afc6bd578289ea8d))
+* 数值命令结果写入 Ans，与普通表达式保持一致(integrate/nderiv/root/sum/product) ([5e2849e](https://github.com/Teletubbix/Calculator/commit/5e2849e512feca46183f5c7dff92abc2f352f9f5))
+
 ## [v6.0.6] - 2026-08-24
 ### 已添加
 - GitHub Actions 自动发布工作流：打 `v*` tag 即自动构建并上传 Release（Linux 包 + Windows 自包含包）。
