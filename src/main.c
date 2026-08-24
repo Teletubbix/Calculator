@@ -398,16 +398,21 @@ static int handle_numerics_command(Session *s, const char *line) {
 
     double a = 0.0, b = 1.0;
     int n_parsed = 0;
+    while (isspace((unsigned char)*p)) p++;
     if (want_deriv) {
         char *end = NULL;
         a = strtod(p, &end);
+        if (end == p) { printf("用法：nderiv <x0> <表达式>\n"); return 1; }
         p = end;
         n_parsed = 1;
     } else {
         char *end = NULL;
         a = strtod(p, &end);
+        if (end == p) { printf("用法：integrate/root/sum/product <a> <b> <表达式>\n"); return 1; }
         p = end;
+        while (isspace((unsigned char)*p)) p++;
         b = strtod(p, &end);
+        if (end == p) { printf("用法：integrate/root/sum/product <a> <b> <表达式>\n"); return 1; }
         p = end;
         n_parsed = 2;
     }
