@@ -63,17 +63,18 @@ jobs:
         with:
           path: artifacts
 
-      - name: 创建 Release 并上传产物
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "Calculator ${{ github.ref_name }}"
-          body: |
-            Calculator **${{ github.ref_name }}** — 自动构建 (GitHub Actions)
-
-            - **Windows**：解压后双击 `Calculator-gui.exe`（已内置完整运行库、无终端窗口；根目录有 `USER_GUIDE.md` / `README.md`）。
-            - **Linux**：`./Calculator`（CLI）/ `./Calculator-gui-linux`（GTK4，需 libgtk-4；含《使用说明.md》）。
-
-            源码以 GNU AGPL-3.0 发布。详见仓库 `README.md`。
-          files: artifacts/**/*
-          generate_release_notes: true
-          update_release: true
+      # 不用 softprops 重新建 Release（避免与 release-please 竞态）；
+      # 改为等 release-please 建好后，把产物上传到该 tag 对应的 Release。
+      - name: 上传产物到 Release（等待 release-please 建好）
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # 最多等 ~2 分钟 release-please 建好 Release
+          for i in $(seq 1 40); do
+            if gh release view "$TAG" >/dev/null 2>&1; then break; fi
+            sleep 3
+          done
+          find artifacts -type f \( -name '*.zip' -o -name '*.tar.gz' \) -print0 \
+            | xargs -0 -I{} gh release upload "$TAG" "{}" --clobber
+          echo "已上传到 Release：$(gh release view "$TAG" --json name --jq '.name')"
