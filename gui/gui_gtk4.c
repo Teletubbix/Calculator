@@ -21,47 +21,47 @@
 
 #define GUI_VERSION "5.0.0"
 
-/* —— 主题（渐变背景 + 高对比醒目按键）—— */
+/* —— 原神主题（渐变背景，数字/函数=浅底深字，运算符/等号=深底白字，保证高对比）—— */
 typedef struct {
     const char *name;
-    const char *win_grad1, *win_grad2;   /* 窗口渐变（160deg） */
+    const char *win_grad1, *win_grad2;
     const char *display_bg, *display_fg, *result_fg, *accent;
-    const char *btn_bg, *btn_fg;
-    const char *digit_bg, *digit_fg;
-    const char *fn_bg, *fn_fg;
-    const char *op_bg, *op_fg;
-    const char *equals_bg, *equals_fg;
-    const char *clear_bg, *clear_fg;
-    const char *mode_bg, *mode_fg;
+    const char *btn_bg, *btn_fg;          /* 基础(未分类) —— 浅底深字 */
+    const char *digit_bg, *digit_fg;      /* 数字 —— 白底深字 */
+    const char *fn_bg, *fn_fg;            /* 函数 —— 浅色底深字 */
+    const char *op_bg, *op_fg;            /* 运算符 —— 深底白字 */
+    const char *equals_bg, *equals_fg;    /* 等号 —— 深底白字 */
+    const char *clear_bg, *clear_fg;      /* 清除 —— 中深底白字 */
+    const char *mode_bg, *mode_fg;        /* 模式 —— 深底白字 */
     int win_w, win_h, key_w, key_h, font, radius;
 } Theme;
 
 static const Theme THEMES[] = {
-    /* 樱粉 Sakura */
-    { "Sakura 樱", "#ff9a9e", "#fecfef", "#fff0f5", "#5a1f3a", "#e0559a", "#ffb3c8",
-      "#ffffff", "#5a1f3a", "#ffffff", "#5a1f3a", "#ffe0ea", "#5a1f3a",
-      "#ff4d7d", "#ffffff", "#e91e63", "#ffffff", "#ffb3c8", "#5a1f3a",
-      "#d5006d", "#ffffff", 440, 560, 62, 52, 16, 14 },
-    /* 海蓝 Ocean */
-    { "Ocean 海", "#48c6ef", "#6f86d6", "#eaf6ff", "#0b2f4a", "#1a7fd4", "#a5d3ff",
-      "#ffffff", "#0b2f4a", "#ffffff", "#0b2f4a", "#d8ecff", "#0b2f4a",
-      "#1e88e5", "#ffffff", "#1565c0", "#ffffff", "#a5d3ff", "#0b2f4a",
-      "#0d47a1", "#ffffff", 440, 560, 62, 52, 16, 14 },
-    /* 薰衣草 Lavender */
-    { "Lavender 薰衣草", "#a18cd1", "#fbc2eb", "#f5ecff", "#241636", "#8a5cff", "#d8c2ff",
-      "#ffffff", "#241636", "#ffffff", "#241636", "#ece2ff", "#241636",
-      "#7c4dff", "#ffffff", "#5e35b1", "#ffffff", "#d8c2ff", "#241636",
-      "#4a2a80", "#ffffff", 440, 560, 62, 52, 16, 14 },
-    /* 薄荷 Mint */
-    { "Mint 薄荷", "#43e97b", "#38f9d7", "#eafff5", "#0e3a2e", "#12b76a", "#a8ecd0",
-      "#ffffff", "#0e3a2e", "#ffffff", "#0e3a2e", "#d9f6e8", "#0e3a2e",
-      "#10b981", "#ffffff", "#059669", "#ffffff", "#a8ecd0", "#0e3a2e",
-      "#047857", "#ffffff", 440, 560, 62, 52, 16, 14 },
-    /* 黄昏 Sunset */
-    { "Sunset 黄昏", "#fa709a", "#fee140", "#fff6e8", "#5a2c10", "#ff7a00", "#ffc999",
-      "#ffffff", "#5a2c10", "#ffffff", "#5a2c10", "#ffe9d0", "#5a2c10",
-      "#fb8c00", "#ffffff", "#e65100", "#ffffff", "#ffc999", "#5a2c10",
-      "#bf360c", "#ffffff", 440, 560, 62, 52, 16, 14 },
+    /* 蒙德 · 风（青绿） */
+    { "原神·蒙德 风", "#5795a8", "#cde6ec", "#eef6f8", "#1f3b40", "#2b8397", "#8ab9c9",
+      "#ffffff", "#1f3b40", "#ffffff", "#1f3b40", "#d9edf0", "#17343a",
+      "#1f6b7d", "#ffffff", "#125563", "#ffffff", "#e07a5f", "#ffffff",
+      "#2b8397", "#ffffff", 440, 560, 62, 52, 16, 14 },
+    /* 璃月 · 岩（金） */
+    { "原神·璃月 岩", "#c9a96a", "#efe0c0", "#fbf5e8", "#3a2c14", "#b8860b", "#d8bd8a",
+      "#ffffff", "#3a2c14", "#ffffff", "#3a2c14", "#f0e6cc", "#3a2c14",
+      "#8a6d3b", "#ffffff", "#6b5025", "#ffffff", "#b5651f", "#ffffff",
+      "#96743d", "#ffffff", 440, 560, 62, 52, 16, 14 },
+    /* 稻妻 · 雷（紫） */
+    { "原神·稻妻 雷", "#6a5a9e", "#c3b3ea", "#f4f0fb", "#241a3d", "#7c3aed", "#b9a6e8",
+      "#ffffff", "#241a3d", "#ffffff", "#241a3d", "#e5dbf5", "#241a3d",
+      "#5e35b1", "#ffffff", "#4527a0", "#ffffff", "#8e3ae8", "#ffffff",
+      "#6a1db9", "#ffffff", 440, 560, 62, 52, 16, 14 },
+    /* 须弥 · 草（绿） */
+    { "原神·须弥 草", "#4a9e6b", "#c2e6cf", "#eefaf2", "#123726", "#1f9d55", "#9fd4b4",
+      "#ffffff", "#123726", "#ffffff", "#123726", "#dff2e5", "#123726",
+      "#15803d", "#ffffff", "#0f6a33", "#ffffff", "#65a30d", "#ffffff",
+      "#0e7a3d", "#ffffff", 440, 560, 62, 52, 16, 14 },
+    /* 枫丹 · 水（蓝） */
+    { "原神·枫丹 水", "#4a90c9", "#bcd8ec", "#eaf4fb", "#12283c", "#1e90d6", "#a8cbe6",
+      "#ffffff", "#12283c", "#ffffff", "#12283c", "#dcecf7", "#12283c",
+      "#1565c0", "#ffffff", "#0d47a1", "#ffffff", "#e5731f", "#ffffff",
+      "#1a73b8", "#ffffff", 440, 560, 62, 52, 16, 14 },
 };
 #define NTHEMES ((int)(sizeof THEMES / sizeof THEMES[0]))
 
