@@ -75,4 +75,4 @@ jobs:
 
             源码以 GNU AGPL-3.0 发布。详见仓库 `README.md`。
           files: artifacts/**/*
-          generate_release_notes: false
+          generate_release_notes: true
