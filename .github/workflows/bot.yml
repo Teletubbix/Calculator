@@ -1,0 +1,53 @@
+name: Bot
+
+# 原生「事件驱动」自动化：issue/PR/评论触发时自动回应
+on:
+  issues:
+    types: [ opened ]
+  pull_request:
+    types: [ opened ]
+  issue_comment:
+    types: [ created ]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  greet:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' || github.event_name == 'pull_request'
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const repo = context.repo;
+            const num = context.issue.number;
+            let body;
+            if (context.eventName === 'pull_request') {
+              body = '感谢提交 PR！CI 会自动跑构建与测试，通过后即可合并。请参考 `PULL_REQUEST_TEMPLATE.md`。';
+              try { await github.rest.issues.addLabels({ ...repo, issue_number: num, labels: ['enhancement'] }); } catch (e) {}
+            } else {
+              body = '感谢反馈！我们会尽快处理。可参考 `ISSUE_TEMPLATE` 补充信息。';
+              try { await github.rest.issues.addLabels({ ...repo, issue_number: num, labels: ['bug'] }); } catch (e) {}
+            }
+            await github.rest.issues.createComment({ ...repo, issue_number: num, body });
+
+  help:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/help')
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: [
+                '**可用命令**：',
+                '- `/help` 显示本帮助',
+                '- `/build` 手动触发 CI 构建',
+                '- 项目说明见 `README.md`，入门见 `docs/使用说明.md`。',
+              ].join('\n')
+            });
