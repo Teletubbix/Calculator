@@ -21,10 +21,11 @@
 
 #define GUI_VERSION "5.0.0"
 
-/* —— 主题（高对比：浅色底 + 深色字，运算符/等号醒目）—— */
+/* —— 主题（渐变背景 + 高对比醒目按键）—— */
 typedef struct {
     const char *name;
-    const char *window_bg, *display_bg, *display_fg, *result_fg, *accent;
+    const char *win_grad1, *win_grad2;   /* 窗口渐变（160deg） */
+    const char *display_bg, *display_fg, *result_fg, *accent;
     const char *btn_bg, *btn_fg;
     const char *digit_bg, *digit_fg;
     const char *fn_bg, *fn_fg;
@@ -37,30 +38,30 @@ typedef struct {
 
 static const Theme THEMES[] = {
     /* 樱粉 Sakura */
-    { "Sakura 樱", "#fff0f5", "#ffe4ec", "#4a2545", "#e0559a", "#ffb3c8",
-      "#f7d9e3", "#40232f", "#ffffff", "#40232f", "#ffd3e0", "#40232f",
-      "#ff8fb3", "#ffffff", "#ff5f9e", "#ffffff", "#ffb3c8", "#5a2542",
-      "#c9a0dc", "#2f1a3d", 460, 560, 62, 52, 16, 12 },
+    { "Sakura 樱", "#ff9a9e", "#fecfef", "#fff0f5", "#5a1f3a", "#e0559a", "#ffb3c8",
+      "#ffffff", "#5a1f3a", "#ffffff", "#5a1f3a", "#ffe0ea", "#5a1f3a",
+      "#ff4d7d", "#ffffff", "#e91e63", "#ffffff", "#ffb3c8", "#5a1f3a",
+      "#d5006d", "#ffffff", 440, 560, 62, 52, 16, 14 },
     /* 海蓝 Ocean */
-    { "Ocean 海", "#e8f4ff", "#d6ecff", "#123a5e", "#1a7fd4", "#a5d3ff",
-      "#cfe8ff", "#10304f", "#ffffff", "#10304f", "#b8dcff", "#10304f",
-      "#4db8ff", "#ffffff", "#2b9ff3", "#ffffff", "#a5d3ff", "#15466e",
-      "#9fd0e8", "#12334f", 460, 560, 62, 52, 16, 12 },
+    { "Ocean 海", "#48c6ef", "#6f86d6", "#eaf6ff", "#0b2f4a", "#1a7fd4", "#a5d3ff",
+      "#ffffff", "#0b2f4a", "#ffffff", "#0b2f4a", "#d8ecff", "#0b2f4a",
+      "#1e88e5", "#ffffff", "#1565c0", "#ffffff", "#a5d3ff", "#0b2f4a",
+      "#0d47a1", "#ffffff", 440, 560, 62, 52, 16, 14 },
     /* 薰衣草 Lavender */
-    { "Lavender 薰衣草", "#f1ecff", "#e6dbff", "#2a1a4a", "#8a5cff", "#d8c2ff",
-      "#e0d2ff", "#2a1a4a", "#ffffff", "#2a1a4a", "#d4c2ff", "#2a1a4a",
-      "#a58bff", "#ffffff", "#7c5cff", "#ffffff", "#d8c2ff", "#2f1a4a",
-      "#b9a0e8", "#241636", 460, 560, 62, 52, 16, 12 },
+    { "Lavender 薰衣草", "#a18cd1", "#fbc2eb", "#f5ecff", "#241636", "#8a5cff", "#d8c2ff",
+      "#ffffff", "#241636", "#ffffff", "#241636", "#ece2ff", "#241636",
+      "#7c4dff", "#ffffff", "#5e35b1", "#ffffff", "#d8c2ff", "#241636",
+      "#4a2a80", "#ffffff", 440, 560, 62, 52, 16, 14 },
     /* 薄荷 Mint */
-    { "Mint 薄荷", "#eafff5", "#d3f5e8", "#0e3a2e", "#22b573", "#a8ecd0",
-      "#c7f2e0", "#0e3a2e", "#ffffff", "#0e3a2e", "#b2ecd5", "#0e3a2e",
-      "#3fc98a", "#04401a", "#17a866", "#ffffff", "#a8ecd0", "#0e3a2e",
-      "#8fe0bf", "#0c3323", 460, 560, 62, 52, 16, 12 },
+    { "Mint 薄荷", "#43e97b", "#38f9d7", "#eafff5", "#0e3a2e", "#12b76a", "#a8ecd0",
+      "#ffffff", "#0e3a2e", "#ffffff", "#0e3a2e", "#d9f6e8", "#0e3a2e",
+      "#10b981", "#ffffff", "#059669", "#ffffff", "#a8ecd0", "#0e3a2e",
+      "#047857", "#ffffff", 440, 560, 62, 52, 16, 14 },
     /* 黄昏 Sunset */
-    { "Sunset 黄昏", "#fff0e0", "#ffe6cb", "#5a2c10", "#ff7a00", "#ffc999",
-      "#ffe2c4", "#4a2308", "#ffffff", "#4a2308", "#ffd9b3", "#4a2308",
-      "#ff9d47", "#ffffff", "#ff6b1a", "#ffffff", "#ffc999", "#5a2c10",
-      "#ffb36b", "#3a1c08", 460, 560, 62, 52, 16, 12 },
+    { "Sunset 黄昏", "#fa709a", "#fee140", "#fff6e8", "#5a2c10", "#ff7a00", "#ffc999",
+      "#ffffff", "#5a2c10", "#ffffff", "#5a2c10", "#ffe9d0", "#5a2c10",
+      "#fb8c00", "#ffffff", "#e65100", "#ffffff", "#ffc999", "#5a2c10",
+      "#bf360c", "#ffffff", 440, 560, 62, 52, 16, 14 },
 };
 #define NTHEMES ((int)(sizeof THEMES / sizeof THEMES[0]))
 
@@ -80,13 +81,12 @@ static AppState g_state;
 
 /* 根据主题生成 CSS 并应用（分辨率/键位/配色绑定主题） */
 static void apply_theme(const Theme *t) {
-    char css[2200];
+    char css[2400];
     snprintf(css, sizeof(css),
-        "window { background-color: %s; }\n"
+        "window { background-image: linear-gradient(160deg, %s, %s); }\n"
         "#display { background-color: %s; color: %s; font-family: \"Consolas\",\"DejaVu Sans Mono\",monospace;"
         "  font-size: %dpx; padding: 12px 14px; border-radius: %dpx; border: 1px solid %s; min-height: 40px; }\n"
         "#result { color: %s; font-size: 15px; font-weight: 600; padding: 4px 8px; min-height: 20px; }\n"
-        "grid { padding: 4px; }\n"
         "button { min-width: %dpx; min-height: %dpx; font-size: %dpx; font-weight: 600;"
         "  border-radius: %dpx; border: none; background-color: %s; color: %s; padding: 0; }\n"
         "button:hover { filter: brightness(1.06); }\n"
@@ -97,7 +97,8 @@ static void apply_theme(const Theme *t) {
         "button.equals { background-color: %s; color: %s; }\n"
         "button.clear { background-color: %s; color: %s; }\n"
         "button.mode { background-color: %s; color: %s; }\n",
-        t->window_bg, t->display_bg, t->display_fg, t->font + 6, t->radius, t->accent,
+        t->win_grad1, t->win_grad2,
+        t->display_bg, t->display_fg, t->font + 6, t->radius, t->accent,
         t->result_fg, t->key_w, t->key_h, t->font, t->radius,
         t->btn_bg, t->btn_fg, t->digit_bg, t->digit_fg, t->fn_bg, t->fn_fg,
         t->op_bg, t->op_fg, t->equals_bg, t->equals_fg, t->clear_bg, t->clear_fg,
