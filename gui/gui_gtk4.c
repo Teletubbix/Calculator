@@ -3,7 +3,7 @@
  * 本程序以 GNU Affero General Public License v3.0 传播；详见 LICENSE。
  */
 /*
- * Calculator v6.0.0 —— GTK4 图形界面（跨平台，可交叉编译）
+ * Calculator v6.0.1 —— GTK4 图形界面（跨平台，可交叉编译）
  * 主题系统：多套高对比、二次元风格主题（樱/海/薰衣草/薄荷/黄昏）。
  * 主题与窗口分辨率、键位大小、字体、配色深度绑定（系统工程）。
  * 布局统一为有序的 6 列分组（控制行/函数两行/数字运算符/底部）。
@@ -29,7 +29,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define GUI_VERSION "6.0.0"
+#define GUI_VERSION "6.0.1"
 
 /* —— 原神主题（渐变背景，数字/函数=浅底深字，运算符/等号=深底白字，保证高对比）—— */
 typedef struct {
