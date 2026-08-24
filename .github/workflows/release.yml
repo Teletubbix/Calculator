@@ -1,0 +1,78 @@
+name: Release
+
+# 打 tag（v*）时自动：Linux 构建打包 + Windows 交叉编译打包 + 上传 GitHub Release
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-gtk4
+            zip
+
+      - name: 交叉编译并打包
+        run: bash scripts/package_windows.sh "$(cygpath -u "$GITHUB_WORKSPACE")" "$GITHUB_REF_NAME"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip
+          path: dist/*.zip
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-4-dev
+
+      - name: 编译并打包
+        run: bash scripts/package_linux.sh "$GITHUB_WORKSPACE" "$GITHUB_REF_NAME"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-tar
+          path: dist/*.tar.gz
+
+  release:
+    needs: [ windows, linux ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: 创建 Release 并上传产物
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Calculator ${{ github.ref_name }}"
+          body: |
+            Calculator **${{ github.ref_name }}** — 自动构建 (GitHub Actions)
+
+            - **Windows**：解压后双击 `Calculator-gui.exe`（已内置完整运行库、无终端窗口；根目录有 `USER_GUIDE.md` / `README.md`）。
+            - **Linux**：`./Calculator`（CLI）/ `./Calculator-gui-linux`（GTK4，需 libgtk-4；含《使用说明.md》）。
+
+            源码以 GNU AGPL-3.0 发布。详见仓库 `README.md`。
+          files: artifacts/**/*
+          generate_release_notes: false
