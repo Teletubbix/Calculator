@@ -1,5 +1,7 @@
 # 🧮 Calculator —— C 语言科学计算器
 
+[![CI](https://github.com/Teletubbix/Calculator/actions/workflows/ci.yml/badge.svg)](https://github.com/Teletubbix/Calculator/actions/workflows/ci.yml)
+
 一个使用 **C11** 编写、面向**工科生**的科学计算器，同时提供**命令行（CLI）**与 **GTK4 图形界面（GUI，Linux/Windows 双端）**。
 支持**完整复数（含相量极坐标）**、**dB 功率级换算**、**矩阵**、**单位换算**，以及 v6.0 新增的**数值工具（积分/求导/求根/求和/连乘）**。
 
@@ -8,7 +10,7 @@
 
 ---
 
-## ✨ 功能总览（v6.0.4）
+## ✨ 功能总览（v6.0.5）
 
 ### 表达式求值（内置 + 插件注册）
 

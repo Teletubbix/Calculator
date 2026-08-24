@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  # —— Linux：编译引擎 + 运行自动测试 + 用 CMake 构建 GTK4 GUI ——
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake pkg-config libgtk-4-dev
+
+      - name: 编译并运行自动测试（Makefile）
+        run: make -j"$(nproc)" test
+
+      - name: 构建 GUI + 跑 ctest（CMake）
+        run: |
+          cmake -S . -B build
+          cmake --build build -j"$(nproc)"
+          ctest --test-dir build --output-on-failure
+
+  # —— Windows：MSYS2 交叉编译 5 个算法库 + CLI + GTK4 GUI ——
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-gtk4
+
+      - name: 交叉编译（DLL + CLI + GUI）
+        run: |
+          cd "$(cygpath -u "$GITHUB_WORKSPACE")"
+          mkdir -p bin gui
+          export PATH=/mingw64/bin:$PATH
+          export PKG_CONFIG_PATH=/mingw64/lib/pkgconfig
+          export PKG_CONFIG_LIBDIR=/mingw64/lib/pkgconfig
+
+          # 复数库无依赖，先编；核心库依赖复数，需链入 import lib
+          x86_64-w64-mingw32-gcc -shared -Iinclude src/complex.c    -o bin/libcalc_complex.dll -Wl,--out-implib,bin/libcalc_complex.dll.a
+          x86_64-w64-mingw32-gcc -shared -Iinclude src/units.c      -o bin/libcalc_units.dll   -Wl,--out-implib,bin/libcalc_units.dll.a
+          x86_64-w64-mingw32-gcc -shared -Iinclude src/matrix.c     -o bin/libcalc_matrix.dll  -Wl,--out-implib,bin/libcalc_matrix.dll.a
+          x86_64-w64-mingw32-gcc -shared -Iinclude src/db.c         -o bin/libcalc_db.dll      -Wl,--out-implib,bin/libcalc_db.dll.a
+          x86_64-w64-mingw32-gcc -shared -Iinclude src/calculator.c -o bin/libcalc_core.dll   -Wl,--out-implib,bin/libcalc_core.dll.a -Lbin -lcalc_complex
+
+          x86_64-w64-mingw32-gcc -Iinclude src/main.c -o bin/Calculator.exe \
+            -Lbin -lcalc_core -lcalc_units -lcalc_matrix -lcalc_complex -lcalc_db
+
+          x86_64-w64-mingw32-gcc -Iinclude gui/gui_gtk4.c -o gui/Calculator-gui.exe -mwindows \
+            -Lbin -lcalc_core -lcalc_matrix -lcalc_complex -lcalc_db \
+            $(pkg-config --cflags --libs gtk4)
+
+          echo ':: 产物：'
+          ls -la bin gui
