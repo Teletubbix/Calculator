@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Calculator VERSION 6.0.1 LANGUAGES C)
+project(Calculator VERSION 6.0.2 LANGUAGES C)
 
 # —— 编译标准 ——
 set(CMAKE_C_STANDARD 11)

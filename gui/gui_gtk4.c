@@ -3,7 +3,7 @@
  * 本程序以 GNU Affero General Public License v3.0 传播；详见 LICENSE。
  */
 /*
- * Calculator v6.0.1 —— GTK4 图形界面（跨平台，可交叉编译）
+ * Calculator v6.0.2 —— GTK4 图形界面（跨平台，可交叉编译）
  * 主题系统：多套高对比、二次元风格主题（樱/海/薰衣草/薄荷/黄昏）。
  * 主题与窗口分辨率、键位大小、字体、配色深度绑定（系统工程）。
  * 布局统一为有序的 6 列分组（控制行/函数两行/数字运算符/底部）。
@@ -29,7 +29,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define GUI_VERSION "6.0.1"
+#define GUI_VERSION "6.0.2"
 
 /* —— 原神主题（渐变背景，数字/函数=浅底深字，运算符/等号=深底白字，保证高对比）—— */
 typedef struct {
@@ -144,10 +144,12 @@ static int asset_path(const char *rel, char *out, size_t sz) {
 }
 
 /* 根据主题生成 CSS 并应用（分辨率/键位/配色绑定主题）。
- * v6.0：若主题指定了存在的背景图，则叠加在渐变之上。 */
+ * v6.0：若主题指定了存在的背景图，则叠加在渐变之上。
+ * v6.0.1：把 Genshin 徽标作为背景暗纹，融入窗口背景。 */
 static void apply_theme(const Theme *t) {
-    char css[2600];
+    char css[3200];
     char winrule[1200];
+    char logorule[1400] = "";
     char img[1024];
     if (t->bg_img != NULL && asset_path(t->bg_img, img, sizeof(img))) {
         snprintf(winrule, sizeof(winrule),
@@ -159,7 +161,19 @@ static void apply_theme(const Theme *t) {
                  "window { background-image: linear-gradient(160deg, %s, %s); }\n",
                  t->win_grad1, t->win_grad2);
     }
+    /* 大号、半透明的原作徽标层，铺在按键网格之下（被按键遮住也没关系） */
+    {
+        char logopath[1024];
+        if (asset_path("assets/logo.png", logopath, sizeof(logopath))) {
+            snprintf(logorule, sizeof(logorule),
+                ".calc-bg { background-image: url(\"%s\");"
+                " background-size: 150%% auto; background-position: center 70px;"
+                " background-repeat: no-repeat; opacity: 0.34; }\n",
+                logopath);
+        }
+    }
     snprintf(css, sizeof(css),
+        "%s"
         "%s"
         "#display { background-color: %s; color: %s; font-family: \"Consolas\",\"DejaVu Sans Mono\",monospace;"
         "  font-size: %dpx; padding: 12px 14px; border-radius: %dpx; border: 1px solid %s; min-height: 40px; }\n"
@@ -174,7 +188,7 @@ static void apply_theme(const Theme *t) {
         "button.equals { background-color: %s; color: %s; }\n"
         "button.clear { background-color: %s; color: %s; }\n"
         "button.mode { background-color: %s; color: %s; }\n",
-        winrule,
+        winrule, logorule,
         t->display_bg, t->display_fg, t->font + 6, t->radius, t->accent,
         t->result_fg, t->key_w, t->key_h, t->font, t->radius,
         t->btn_bg, t->btn_fg, t->digit_bg, t->digit_fg, t->fn_bg, t->fn_fg,
@@ -343,24 +357,19 @@ static void activate(GtkApplication *app, gpointer user_data) {
     g_state.window = window;
     gtk_window_set_title(GTK_WINDOW(window), "Calculator " GUI_VERSION);
 
+    /* 用 GtkOverlay 把大号、半透明的原神徽标铺在按键层之下，融入窗口背景 */
+    GtkWidget *overlay = gtk_overlay_new();
+    GtkWidget *bgbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_set_hexpand(bgbox, TRUE);
+    gtk_widget_set_vexpand(bgbox, TRUE);
+    gtk_widget_add_css_class(bgbox, "calc-bg");
+    gtk_overlay_set_child(GTK_OVERLAY(overlay), bgbox);
+
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
     gtk_widget_set_margin_top(box, 12);
     gtk_widget_set_margin_bottom(box, 12);
     gtk_widget_set_margin_start(box, 12);
     gtk_widget_set_margin_end(box, 12);
-
-    /* 顶部 Genshin Impact 徽标（随可执行文件同级或 assets/ 查找）*/
-    {
-        char logo_path[1024];
-        if (asset_path("assets/logo.png", logo_path, sizeof(logo_path))) {
-            GtkWidget *logo = gtk_image_new_from_file(logo_path);
-            gtk_image_set_pixel_size(GTK_IMAGE(logo), 40);
-            gtk_widget_set_halign(logo, GTK_ALIGN_CENTER);
-            gtk_widget_set_margin_top(logo, 2);
-            gtk_widget_set_margin_bottom(logo, 4);
-            gtk_box_append(GTK_BOX(box), logo);
-        }
-    }
 
     g_state.entry = gtk_entry_new();
     gtk_widget_set_name(g_state.entry, "display");
@@ -458,7 +467,8 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_set_vexpand(g_state.nota_btn, TRUE);
     gtk_grid_attach(GTK_GRID(grid), g_state.nota_btn, 3, 7, 3, 1);
 
-    gtk_window_set_child(GTK_WINDOW(window), box);
+    gtk_overlay_add_overlay(GTK_OVERLAY(overlay), box);
+    gtk_window_set_child(GTK_WINDOW(window), overlay);
     apply_theme(&THEMES[0]);
     gtk_window_present(GTK_WINDOW(window));
 }
@@ -472,7 +482,9 @@ int main(int argc, char **argv) {
     f = calc_db_functions(&n);
     calc_register_functions(f, n);
 
-    GtkApplication *app = gtk_application_new("org.teletubbix.calculator", G_APPLICATION_DEFAULT_FLAGS);
+    /* NON_UNIQUE：避免 Windows 无 dbus 时报 “win32 session dbus binary not found” */
+    GtkApplication *app = gtk_application_new("org.teletubbix.calculator",
+                                              G_APPLICATION_NON_UNIQUE);
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
     int status = g_application_run(G_APPLICATION(app), argc, argv);
     g_object_unref(app);
