@@ -17,6 +17,7 @@ jobs:
     steps:
       - uses: google-github-actions/release-please-action@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # 用真实 PAT（BOT_TOKEN）而非 GITHUB_TOKEN：这样它 push 的 tag 才触发 release.yml
+          token: ${{ secrets.BOT_TOKEN }}
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
