@@ -5,7 +5,7 @@
       "release-type": "simple",
       "changelog-path": "CHANGELOG.md",
       "include-v-in-tag": true,
-      "release": false
+      "release": true
     }
   }
 }
