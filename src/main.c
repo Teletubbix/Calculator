@@ -440,6 +440,8 @@ static int handle_numerics_command(Session *s, const char *line) {
         rc = calc_root(expr, s->mode, a, b, &root, err, sizeof(err));
         if (rc == 0) {
             printf("= %g\n", root);
+            s->ans = (CalcComplex){ root, 0.0 };
+            s->has_ans = 1;
             return 1;
         }
     } else if (strcmp(names[idx], "sum") == 0) {
@@ -453,6 +455,8 @@ static int handle_numerics_command(Session *s, const char *line) {
         char out[160];
         format_complex(result, s->precision, out, sizeof(out));
         printf("= %s\n", out);
+        s->ans = result;      /* 数值命令也更新 Ans，与普通表达式一致 */
+        s->has_ans = 1;
     }
     return 1;
 }
