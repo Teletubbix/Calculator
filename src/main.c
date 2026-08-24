@@ -4,7 +4,7 @@
  */
 
 /*
- * Calculator 主程序 v6.0.5
+ * Calculator 主程序 v6.0.6
  *
  * 交互模式：
  *   ./Calculator
@@ -35,7 +35,7 @@
 #endif
 
 #define APP_NAME "Calculator"
-#define APP_VERSION "6.0.5"
+#define APP_VERSION "6.0.6"
 #define MAX_LINE 1024
 #define PRECISION_AUTO (-1)
 
