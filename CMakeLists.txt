@@ -59,7 +59,11 @@ endif()
 if(GTK4_FOUND)
     add_executable(Calculator-gui gui/gui_gtk4.c)
     target_link_libraries(Calculator-gui PRIVATE calc_core calc_matrix calc_complex calc_db ${GTK4_LIBRARIES})
-    target_include_directories(Calculator-gui PRIVATE ${GTK4_INCLUDE_DIRS})
+    # GTK 头文件作为 SYSTEM 头，避免 -Wpedantic 对第三方头文件误报
+    target_include_directories(Calculator-gui SYSTEM PRIVATE ${GTK4_INCLUDE_DIRS})
+    # 严格 C11(-std=c11) 会隐藏 POSIX 接口(如 readlink)；为 GUI 目标开启 GNU 扩展，
+    # 与 IntelliSense 配置(c_cpp_properties.json)里的 _GNU_SOURCE 保持一致
+    target_compile_definitions(Calculator-gui PRIVATE _GNU_SOURCE)
     message(STATUS "找到 GTK4，构建 GUI 目标 Calculator-gui")
 else()
     message(STATUS "未找到 GTK4，跳过 GUI 目标（需要 libgtk-4-dev）")
