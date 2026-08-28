@@ -2,6 +2,13 @@
 
 本文件记录每个版本的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [6.0.8](https://github.com/Teletubbix/Calculator/compare/v6.0.7...v6.0.8) (2026-08-28)
+
+
+### Bug Fixes
+
+* **cmake:** enable _GNU_SOURCE for GUI target (readlink) and mark GTK as SYSTEM headers ([2a650f9](https://github.com/Teletubbix/Calculator/commit/2a650f949dc7bc0d9efee828f93ddff5a926e154))
+
 ## [6.0.7](https://github.com/Teletubbix/Calculator/compare/v6.0.6...v6.0.7) (2026-08-24)
 
 
